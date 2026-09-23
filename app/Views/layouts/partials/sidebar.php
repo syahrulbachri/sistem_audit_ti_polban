@@ -107,12 +107,6 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= $isActive('auditee/daftar-audit') ? 'active' : '' ?>"
-                        href="/auditee/daftar-audit" onclick="if(window.innerWidth < 992) toggleSidebar()">
-                        <i class="bi bi-list-check"></i> Daftar Audit
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link <?= $isActive('auditee/riwayat') ? 'active' : '' ?>" href="/auditee/riwayat"
                         onclick="if(window.innerWidth < 992) toggleSidebar()">
                         <i class="bi bi-clock-history"></i> Riwayat Audit
@@ -148,13 +142,20 @@
                 <li class="nav-item">
                     <a class="nav-link <?= uri_string() == 'pimpinan/monitoring_rtl' ? 'active' : '' ?>"
                         href="/pimpinan/rtl" onclick="if(window.innerWidth < 992) toggleSidebar()">
-                        <i class="bi bi-search-heart"></i> Pelacakan RTL
+                        <i class="bi bi-search-heart"></i> Monitoring Temuan
                     </a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link <?= uri_string() == 'pimpinan/arsip' ? 'active' : '' ?>" href="/pimpinan/arsip"
                         onclick="if(window.innerWidth < 992) toggleSidebar()">
                         <i class="bi bi-archive-fill"></i> Arsip Laporan Audit
+                    </a>
+                </li>
+                <!-- Menu Log Aktivitas -->
+                <li class="nav-item">
+                    <a class="nav-link" href="/pimpinan/activity-logs">
+                        <i class="bi bi-journal-text"></i>
+                        <span>Log Aktivitas</span>
                     </a>
                 </li>
                 <li class="nav-item">

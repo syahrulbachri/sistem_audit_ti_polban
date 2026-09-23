@@ -20,7 +20,7 @@ class LhaController extends BaseController
         $search          = (string) ($this->request->getGet('search') ?? '');
         $filterFramework = (string) ($this->request->getGet('framework') ?? '');
         $filterPeriode   = (string) ($this->request->getGet('periode') ?? '');
-        $filterAuditee   = (string) ($this->request->getGet('auditee') ?? ''); // BARU
+        $filterAuditee   = (string) ($this->request->getGet('auditee') ?? '');
 
         $currentPage = (int) ($this->request->getGet('page') ?? 1);
         $perPage = 10;
@@ -31,6 +31,13 @@ class LhaController extends BaseController
         if (!empty($filterPeriode)) {
             $pRow = $db->table('periodes')->select('nama_periode')->where('id', $filterPeriode)->get()->getRow();
             $selectedPeriodeName = $pRow ? (string) $pRow->nama_periode : '';
+        }
+
+        // Ambil nama auditee untuk label card (BARU)
+        $selectedAuditeeName = '';
+        if (!empty($filterAuditee)) {
+            $aRow = $db->table('users')->select('fullname')->where('id', $filterAuditee)->get()->getRow();
+            $selectedAuditeeName = $aRow ? (string) $aRow->fullname : '';
         }
 
         // ==========================================================
@@ -55,9 +62,12 @@ class LhaController extends BaseController
         // ==========================================================
         // HITUNG STATISTIK CARD
         // ==========================================================
+
+        // Card 1: Total Audit
         $q1 = clone $baseBuilder;
         $totalAudit = (int) $q1->countAllResults();
 
+        // Card 2: Periode
         if (!empty($filterPeriode)) {
             $q2 = clone $baseBuilder;
             $countPeriode = (int) $q2->countAllResults();
@@ -71,12 +81,23 @@ class LhaController extends BaseController
             $notePeriode  = 'Periode dengan audit selesai';
         }
 
-        $q3 = clone $baseBuilder;
-        $row3 = $q3->select('COUNT(DISTINCT auditee_id) as total', false)->get()->getRow();
-        $countAuditee = $row3 ? (int) $row3->total : 0;
-        $labelAuditee = 'Total Unit Teraudit';
-        $noteAuditee  = 'Unit kerja unik diaudit';
+        // Card 3: Auditee (DINAMIS - Sama seperti Periode & Framework)
+        if (!empty($filterAuditee)) {
+            // Jika difilter: Hitung total audit untuk auditee tersebut
+            $q3 = clone $baseBuilder;
+            $countAuditee = (int) $q3->countAllResults();
+            $labelAuditee = 'Unit Teraudit: ' . $selectedAuditeeName;
+            $noteAuditee  = 'Audit untuk unit ini';
+        } else {
+            // Jika TIDAK difilter: Hitung jumlah unit unik yang diaudit
+            $q3 = clone $baseBuilder;
+            $row3 = $q3->select('COUNT(DISTINCT auditee_id) as total', false)->get()->getRow();
+            $countAuditee = $row3 ? (int) $row3->total : 0;
+            $labelAuditee = 'Total Unit Teraudit';
+            $noteAuditee  = 'Unit kerja unik diaudit';
+        }
 
+        // Card 4: Framework
         if (!empty($filterFramework)) {
             $q4 = clone $baseBuilder;
             $countFramework = (int) $q4->countAllResults();
@@ -113,14 +134,44 @@ class LhaController extends BaseController
             ->get()
             ->getResult();
 
-        // Ambil daftar periode & auditee untuk dropdown
-        $periodes = $db->table('periodes')->orderBy('nama_periode', 'DESC')->get()->getResult();
-        $auditees = $db->table('users')
-            ->select('id, fullname')
-            ->where('role', 'auditee')
-            ->orderBy('fullname', 'ASC')
-            ->get()->getResult();
+        // ==========================================================
+        // AMBIL DATA DROPDOWN DARI AUDIT YANG SUDAH SELESAI (DINAMIS)
+        // ==========================================================
 
+        // 1. Framework: Ambil DISTINCT framework dari audit yang status='selesai'
+        $frameworks = $db->table('audits')
+            ->distinct()                                    // ✅ Method terpisah
+            ->select('framework')                           // ✅ Tanpa kata DISTINCT
+            ->where('status', 'selesai')
+            ->where('framework IS NOT NULL')
+            ->where('framework !=', '')
+            ->orderBy('framework', 'ASC')
+            ->get()
+            ->getResult();
+
+        // 2. Periode: Ambil DISTINCT periode dari audit yang status='selesai'
+        $periodes = $db->table('audits')
+            ->distinct()                                    // ✅ Method terpisah
+            ->select('periodes.id, periodes.nama_periode', false)  // ✅ false = jangan escape
+            ->join('periodes', 'periodes.id = audits.periode_id', 'left')
+            ->where('audits.status', 'selesai')
+            ->where('audits.periode_id IS NOT NULL')
+            ->orderBy('periodes.nama_periode', 'DESC')
+            ->get()
+            ->getResult();
+
+        // 3. Unit/Auditee: Ambil DISTINCT auditee dari audit yang status='selesai'
+        $auditees = $db->table('audits')
+            ->distinct()                                    // ✅ Method terpisah
+            ->select('users.id, users.fullname', false)     // ✅ false = jangan escape
+            ->join('users', 'users.id = audits.auditee_id', 'left')
+            ->where('audits.status', 'selesai')
+            ->where('audits.auditee_id IS NOT NULL')
+            ->orderBy('users.fullname', 'ASC')
+            ->get()
+            ->getResult();
+
+        // Kirim Data ke View
         return view('pimpinan/daftar_lha', [
             'page_title'      => 'DAFTAR LAPORAN HASIL AUDIT (LHA) - POLBAN',
             'page_subtitle'   => 'Portal Pimpinan (Monitoring Laporan Akhir Audit)',
@@ -131,6 +182,7 @@ class LhaController extends BaseController
             'filterAuditee'   => $filterAuditee,
             'periodes'        => $periodes,
             'auditees'        => $auditees,
+            'frameworks'      => $frameworks,
             'currentPage'     => $currentPage,
             'totalPages'      => $totalPages,
             'total'           => $total,
@@ -158,26 +210,80 @@ class LhaController extends BaseController
 
         $db = Database::connect();
 
+        // 1. Ambil data audit dengan semua relasi
         $audit = $db->table('audits')
             ->select('audits.*, 
-                      periodes.nama_periode,
-                      auditee.fullname as auditee_name,
-                      auditor.fullname as auditor_name')
+                  periodes.nama_periode,
+                  auditee.fullname as auditee_name,
+                  auditor.fullname as auditor_name')
             ->join('periodes', 'periodes.id = audits.periode_id', 'left')
             ->join('users as auditee', 'auditee.id = audits.auditee_id', 'left')
             ->join('users as auditor', 'auditor.id = audits.created_by_auditor', 'left')
             ->where('audits.id', $id)
             ->get()
-            ->getRowArray();
+            ->getRow();
 
         if (!$audit) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
+        // 2. Ambil daftar pertanyaan yang di-assign ke audit ini
+        $assignedQuestions = $db->table('audit_question_assignments as aqa')
+            ->select('aqa.*, aq.clause_code, aq.question_text, aq.framework')
+            ->join('audit_questions as aq', 'aq.id = aqa.question_id', 'left')
+            ->where('aqa.audit_id', $id)
+            ->orderBy('aq.clause_code', 'ASC')
+            ->get()
+            ->getResult();
+
+        // 3. Hitung skor akhir (Compliance Rate)
+        $totalQuestions = count($assignedQuestions);
+        $totalScore = 0;
+        $answeredCount = 0;
+
+        foreach ($assignedQuestions as $q) {
+            if ($q->score !== null) {
+                $totalScore += (float) $q->score;
+                $answeredCount++;
+            }
+        }
+
+        // Tentukan max score berdasarkan framework
+        $fw = $db->table('frameworks')->where('nama', $audit->framework)->get()->getRow();
+        $isBinary = $fw && isset($fw->scoring_type) && $fw->scoring_type === 'binary';
+        $maxScore = $fw ? (int) ($fw->max_score ?? 1) : 1;
+
+        $finalScorePercent = 0;
+        if ($totalQuestions > 0) {
+            if ($isBinary) {
+                $finalScorePercent = $answeredCount > 0 ? round(($totalScore / $answeredCount) * 100) : 0;
+            } else {
+                $finalScorePercent = $answeredCount > 0 ? round(($totalScore / ($answeredCount * $maxScore)) * 100, 2) : 0;
+            }
+        }
+
+        // 4. Ambil temuan untuk audit ini
+        $findings = $db->table('temuans')
+            ->select('temuans.*, aq.clause_code')
+            ->join('audit_questions as aq', 'aq.id = temuans.question_id', 'left')
+            ->where('temuans.audit_id', $id)
+            ->orderBy('temuans.tingkat_risiko', 'DESC')
+            ->get()
+            ->getResult();
+
+        // 5. Kirim data ke view
         return view('pimpinan/daftar_lha/lha_detail', [
-            'page_title'    => 'DETAIL AUDIT',
-            'page_subtitle' => (string) ($audit['title'] ?? 'Detail Audit'),
+            'page_title'    => 'DETAIL LAPORAN HASIL AUDIT (LHA)',
+            'page_subtitle' => (string) ($audit->title ?? 'Detail Audit')
+                . ' — '
+                . (string) ($audit->auditee_name ?? ''),
             'audit'         => $audit,
+            'assignedQuestions' => $assignedQuestions,
+            'totalQuestions'    => $totalQuestions,
+            'finalScorePercent' => $finalScorePercent,
+            'isBinary'          => $isBinary,
+            'maxScore'          => $maxScore,
+            'findings'          => $findings,
         ]);
     }
 }

@@ -1,40 +1,75 @@
-<div class="top-header">
-    <!-- Tombol Toggle Mobile -->
-    <button class="btn btn-light d-lg-none me-3" onclick="toggleSidebar()">
-        <i class="bi bi-list fs-4"></i>
-    </button>
-    
-    <!-- Judul Halaman -->
-    <h5 class="fw-bold m-0 d-none d-lg-block" style="color: var(--primary-navy);">
-        <?= $page_title ?? 'Dashboard' ?>
-    </h5>
-    
-    <!-- Spacer agar profil terdorong ke kanan -->
-    <div class="flex-grow-1"></div> 
+<?php
+// Ambil foto profil langsung dari database (bukan dari session) supaya
+// selalu akurat tanpa perlu mengubah Auth.php dan tanpa risiko basi
+// kalau session belum/tidak tersinkron.
+$topbarPhoto = null;
+if (session()->get('logged_in')) {
+    $topbarUser = \Config\Database::connect()
+        ->table('users')
+        ->select('photo')
+        ->where('id', session()->get('id'))
+        ->get()
+        ->getRow();
+    $topbarPhoto = $topbarUser->photo ?? null;
+}
+?>
+<div class="top-header w-100">
+    <!-- Bagian Kiri: Judul Halaman (Di-render dari view anak) -->
+    <div class="page-header-section">
+        <?= $this->renderSection('page_header') ?>
+    </div>
 
-    <!-- User Profile Section -->
-    <div class="dropdown">
-        <div class="user-profile dropdown-toggle" data-bs-toggle="dropdown">
-            <div class="text-end d-none d-sm-block">
-                <div class="fw-bold text-dark" style="font-size: 0.9rem;">
-                    <?= session()->get('fullname') ?? 'User' ?>
-                </div>
-                <div class="text-muted" style="font-size: 0.75rem;">
-                    <?= ucfirst(session()->get('role')) ?? 'Role' ?>
-                </div>
+    <!-- Bagian Kanan: Profil User -->
+    <div class="user-profile dropdown">
+        <div class="text-end me-2 d-none d-md-block">
+            <div class="fw-bold" style="font-size: 0.9rem; color: var(--primary-navy);">
+                <?= esc(session()->get('fullname') ?? 'User') ?>
             </div>
-            <div class="user-avatar">
-                <?= substr(session()->get('fullname') ?? 'U', 0, 1) ?>
-            </div>
+            <small class="text-muted" style="font-size: 0.75rem;">
+                <?= esc(ucfirst(session()->get('role') ?? 'Role')) ?>
+            </small>
         </div>
-        <ul class="dropdown-menu dropdown-menu-end shadow">
-              <li>
-        <a class="dropdown-item" href="/profile">
-            <i class="bi bi-person me-2"></i> Profil Saya
-        </a>
-    </li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="/logout"><i class="bi bi-box-arrow-right me-2"></i> Keluar</a></li>
+
+        <div class="user-avatar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <?php if (!empty($topbarPhoto)): ?>
+                <img src="<?= base_url('uploads/profile_photos/' . esc($topbarPhoto, 'url')) ?>"
+                    alt="Foto Profil">
+            <?php else: ?>
+                <?= strtoupper(substr(session()->get('fullname') ?? 'U', 0, 1)) ?>
+            <?php endif; ?>
+        </div>
+
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+            <li><a class="dropdown-item" href="/profile"><i class="bi bi-person me-2"></i>Profil Saya</a></li>
+            <li>
+                <hr class="dropdown-divider">
+            </li>
+            <li><a class="dropdown-item text-danger" href="/logout"><i class="bi bi-box-arrow-right me-2"></i>Keluar</a></li>
         </ul>
     </div>
 </div>
+
+<style>
+    .user-avatar {
+        overflow: hidden;
+    }
+
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .page-header-section h4 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--primary-navy);
+        margin: 0;
+    }
+
+    .page-header-section small {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+</style>

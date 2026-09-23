@@ -1,676 +1,298 @@
 <?= $this->extend('layouts/main') ?>
+
+<?= $this->section('page_header') ?>
+<div>
+    <h4 class="mb-0"><?= esc((string) $page_title) ?></h4>
+    <small class="text-muted"><?= esc((string) $page_subtitle) ?></small>
+</div>
+<?= $this->endSection() ?>
+
 <?= $this->section('content') ?>
-<style>
-    /* ===== WRAPPER - FULL WIDTH ===== */
-    .review-wrap {
-        max-width: 100%;
-        width: 100%;
-        margin: 0;
-        padding: 0 32px 32px 32px;
-    }
 
-    /* ===== BACK LINK ===== */
-    .back-link {
-        color: #64748B;
-        font-size: 0.9rem;
-        font-weight: 600;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 20px;
-    }
+<div class="container-fluid py-4">
+    <!-- Info Audit Header -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <h3 class="fw-bold mb-2" style="color: var(--primary-navy, #273272);">
+                        <?= esc((string) ($audit->title ?? '-')) ?>
+                    </h3>
+                    <span class="badge bg-primary rounded-pill">
+                        <?= esc((string) ($audit->framework ?? '-')) ?>
+                    </span>
+                </div>
+                <?php
+                $statusClass = match ($audit->status ?? '') {
+                    'menunggu_jawaban' => 'bg-info text-dark',
+                    'aktif' => 'bg-primary',
+                    'menunggu_penilaian' => 'bg-warning text-dark',
+                    'revisi' => 'bg-danger',
+                    'selesai' => 'bg-success',
+                    default => 'bg-secondary'
+                };
+                ?>
+                <span class="badge <?= $statusClass ?> rounded-pill fs-6 px-3 py-2">
+                    <?= ucfirst(str_replace('_', ' ', $audit->status ?? '')) ?>
+                </span>
+            </div>
 
-    .back-link:hover {
-        color: #1E293B;
-    }
-
-    /* ===== TOOLBAR ===== */
-    .review-toolbar {
-        display: flex;
-        justify-content: flex-end;
-        gap: 12px;
-        margin-bottom: 24px;
-    }
-
-    .btn-outline-soft {
-        background: #FFFFFF;
-        border: 1px solid #CBD5E1;
-        color: #1E293B;
-        font-weight: 600;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        padding: 12px 20px;
-    }
-
-    .btn-outline-danger-soft {
-        background: #FFFFFF;
-        border: 1px solid #FCA5A5;
-        color: #DC2626;
-        font-weight: 600;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        padding: 12px 20px;
-    }
-
-    .btn-approve-green {
-        background: #16A34A;
-        border: none;
-        color: #FFFFFF;
-        font-weight: 700;
-        font-size: 0.9rem;
-        border-radius: 8px;
-        padding: 12px 22px;
-    }
-
-    .btn-approve-green:hover {
-        background: #15803D;
-        color: #FFFFFF;
-    }
-
-    /* ===== CARD PANEL ===== */
-    .card-panel {
-        background: #FFFFFF;
-        border: 1px solid #E2E8F0;
-        border-radius: 14px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-        padding: 28px 32px;
-        margin-bottom: 24px;
-    }
-
-    /* ===== STATUS PILL ===== */
-    .status-pill-top {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 0.85rem;
-        font-weight: 700;
-        border-radius: 999px;
-        padding: 8px 18px;
-        margin-bottom: 18px;
-    }
-
-    .status-menunggu-top {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .status-disetujui-top {
-        background: #DCFCE7;
-        color: #16A34A;
-    }
-
-    .status-revisi-top {
-        background: #FEE2E2;
-        color: #DC2626;
-    }
-
-    .status-belum-top {
-        background: #F1F5F9;
-        color: #64748B;
-    }
-
-    /* ===== DOC INFO ===== */
-    .doc-title {
-        color: #1E2A5E;
-        font-weight: 800;
-        font-size: 1.6rem;
-        margin-bottom: 10px;
-    }
-
-    .doc-scope {
-        color: #64748B;
-        font-size: 1rem;
-        margin-bottom: 16px;
-    }
-
-    .doc-meta {
-        font-size: 0.9rem;
-        color: #475569;
-    }
-
-    .doc-meta b {
-        color: #1E293B;
-    }
-
-    .doc-meta .sep {
-        margin: 0 10px;
-        color: #CBD5E1;
-    }
-
-    /* ===== TABS ===== */
-    .review-tabs {
-        display: flex;
-        gap: 36px;
-        border-bottom: 2px solid #E2E8F0;
-        margin: 28px 0 32px 0;
-    }
-
-    .review-tab {
-        background: none;
-        border: none;
-        padding: 14px 4px;
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #94A3B8;
-        border-bottom: 3px solid transparent;
-        cursor: pointer;
-        margin-bottom: -2px;
-    }
-
-    .review-tab.active {
-        color: #1E2A5E;
-        border-bottom-color: #1E2A5E;
-    }
-
-    /* ===== MINI STAT ===== */
-    .mini-stat {
-        background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 28px 20px;
-        text-align: center;
-    }
-
-    .mini-stat .num {
-        font-size: 2.2rem;
-        font-weight: 800;
-    }
-
-    .mini-stat .lbl {
-        font-size: 0.85rem;
-        color: #64748B;
-        margin-top: 8px;
-        font-weight: 600;
-    }
-
-    .mini-num-navy {
-        color: #1E293B;
-    }
-
-    .mini-num-red {
-        color: #DC2626;
-    }
-
-    .mini-num-orange {
-        color: #D97706;
-    }
-
-    /* ===== CATATAN EKSEKUTIF ===== */
-    .catatan-eksekutif {
-        font-size: 0.95rem;
-        color: #334155;
-        margin-top: 24px;
-        line-height: 1.7;
-        padding: 20px;
-        background: #F8FAFC;
-        border-radius: 10px;
-        border-left: 4px solid #3B82F6;
-    }
-
-    /* ===== TEMUAN BLOCK ===== */
-    .temuan-block {
-        border: 1px solid #E2E8F0;
-        border-radius: 12px;
-        padding: 28px;
-        margin-bottom: 28px;
-        background: #FFFFFF;
-    }
-
-    .temuan-block:last-child {
-        margin-bottom: 0;
-    }
-
-    .temuan-kode {
-        color: #2563EB;
-        font-size: 0.82rem;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        margin-bottom: 8px;
-    }
-
-    .temuan-judul {
-        font-weight: 700;
-        color: #0F172A;
-        font-size: 1.15rem;
-        margin: 8px 0 20px 0;
-    }
-
-    /* ===== RISK PILL ===== */
-    .risk-pill {
-        font-size: 0.8rem;
-        font-weight: 700;
-        border-radius: 999px;
-        padding: 6px 16px;
-        white-space: nowrap;
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .risk-pill.kritis {
-        background: #FEE2E2;
-        color: #DC2626;
-    }
-
-    .risk-pill.tinggi {
-        background: #FFEDD5;
-        color: #C2410C;
-    }
-
-    .risk-pill.sedang {
-        background: #FEF3C7;
-        color: #92400E;
-    }
-
-    .risk-pill.rendah {
-        background: #DCFCE7;
-        color: #16A34A;
-    }
-
-    /* ===== C5 GRID ===== */
-    .c5-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px 32px;
-        background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
-        border-radius: 10px;
-        padding: 24px;
-        margin-bottom: 20px;
-    }
-
-    .c5-grid .c5-label {
-        font-size: 0.78rem;
-        font-weight: 700;
-        color: #64748B;
-        text-transform: uppercase;
-        margin-bottom: 8px;
-        letter-spacing: 0.3px;
-    }
-
-    .c5-grid .c5-text {
-        font-size: 0.92rem;
-        color: #1E293B;
-        line-height: 1.6;
-    }
-
-    /* ===== REKOMENDASI ===== */
-    .rekomendasi-label {
-        font-weight: 700;
-        font-size: 0.95rem;
-        color: #1E293B;
-        margin-top: 16px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .rekomendasi-text {
-        font-size: 0.92rem;
-        color: #334155;
-        margin-top: 10px;
-        line-height: 1.6;
-        padding: 18px;
-        background: #EFF6FF;
-        border-radius: 10px;
-        border-left: 3px solid #3B82F6;
-    }
-
-    /* ===== PANEL PENGESAHAN ===== */
-    .panel-pengesahan h6 {
-        font-weight: 700;
-        color: #1E293B;
-        font-size: 1.1rem;
-        margin-bottom: 20px;
-    }
-
-    .panel-pengesahan textarea {
-        font-size: 0.92rem;
-        line-height: 1.6;
-    }
-
-    /* ===== PIN BOX ===== */
-    .pin-box-wrap {
-        border: 2px dashed #93C5FD;
-        background: linear-gradient(135deg, #F0F7FF 0%, #E0F2FE 100%);
-        border-radius: 12px;
-        padding: 22px;
-        margin: 24px 0;
-    }
-
-    .pin-box-wrap label {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: #1E3A8A;
-        margin-bottom: 12px;
-        display: block;
-    }
-
-    .pin-box-wrap input {
-        letter-spacing: 12px;
-        font-weight: 700;
-        text-align: center;
-        font-size: 1.2rem;
-    }
-
-    .pin-box-wrap .hint {
-        font-size: 0.8rem;
-        color: #64748B;
-        margin-top: 10px;
-    }
-
-    /* ===== SERTIFIKAT NOTE ===== */
-    .sertifikat-note {
-        font-size: 0.78rem;
-        color: #94A3B8;
-        text-align: center;
-        margin-top: 20px;
-        line-height: 1.6;
-        padding: 14px;
-        background: #F8FAFC;
-        border-radius: 8px;
-    }
-
-    /* ===== DECIDED BOX ===== */
-    .decided-box {
-        border-radius: 12px;
-        padding: 22px;
-        font-size: 0.92rem;
-        margin-bottom: 24px;
-        line-height: 1.6;
-    }
-
-    .decided-box.approved {
-        background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
-        color: #15803D;
-        border: 2px solid #86EFAC;
-    }
-
-    .decided-box.revised {
-        background: linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%);
-        color: #B91C1C;
-        border: 2px solid #FCA5A5;
-    }
-
-    .decided-box.pending-doc {
-        background: #F1F5F9;
-        color: #64748B;
-        border: 2px solid #CBD5E1;
-        text-align: center;
-    }
-
-    /* ===== ARAHAN ===== */
-    .arahan-readonly {
-        background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
-        border: 2px solid #E2E8F0;
-        border-radius: 10px;
-        padding: 20px;
-        font-size: 0.92rem;
-        color: #1E293B;
-        line-height: 1.7;
-        min-height: 120px;
-    }
-
-    .arahan-meta {
-        font-size: 0.85rem;
-        color: #64748B;
-        margin-top: 16px;
-        line-height: 1.8;
-    }
-
-    .arahan-meta b {
-        color: #1E293B;
-    }
-
-    .badge-pin-verified {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-        color: #1D4ED8;
-        font-size: 0.78rem;
-        font-weight: 700;
-        border-radius: 999px;
-        padding: 6px 14px;
-        margin-top: 12px;
-    }
-
-    /* ===== RESPONSIVE ===== */
-    @media (max-width: 768px) {
-        .review-wrap {
-            padding: 0 16px 16px 16px;
-        }
-
-        .card-panel {
-            padding: 20px;
-        }
-
-        .c5-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-
-<div class="review-wrap">
-    <a href="/pimpinan/lha" class="back-link">← Kembali ke Daftar LHA</a>
-
-    <div class="review-toolbar">
-        <button type="button" class="btn-outline-soft">⬇️ Unduh PDF LHA</button>
-    </div>
-    <div class="card-panel">
-        <span class="status-pill-top status-<?= esc($lha['status']) ?>-top">
-            <?= $lha['status_icon'] ?> <?= esc($lha['status_label']) ?>
-        </span>
-        <div class="doc-title"><?= esc($lha['judul']) ?></div>
-        <div class="doc-scope">Ruang Lingkup: <?= esc($lha['ruang_lingkup']) ?></div>
-        <div class="doc-meta">
-            <b>No. Dokumen:</b> <?= esc($lha['no_dokumen']) ?>
-            <span class="sep">•</span>
-            <b>Periode Audit:</b> <?= esc($lha['periode']) ?>
-            <span class="sep">•</span>
-            <b>Lead Auditor:</b> <?= esc($lha['lead_auditor']) ?>
-            <span class="sep">•</span>
-            <b>Auditee:</b> <?= esc($lha['auditee']) ?>
+            <div class="row g-3 mt-2">
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Periode</small>
+                    <strong><?= esc((string) ($audit->nama_periode ?? '-')) ?></strong>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Auditee</small>
+                    <strong><i class="bi bi-building me-1"></i><?= esc((string) ($audit->auditee_name ?? '-')) ?></strong>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Auditor</small>
+                    <strong><i class="bi bi-person-badge me-1"></i><?= esc((string) ($audit->auditor_name ?? '-')) ?></strong>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Deadline</small>
+                    <strong><i class="bi bi-calendar-event me-1"></i><?= date('d M Y', strtotime($audit->deadline ?? 'now')) ?></strong>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="review-tabs">
-        <button type="button" class="review-tab active" data-tab="ringkasan"> Ringkasan & Temuan Audit (5C)</button>
-        <button type="button" class="review-tab" data-tab="rtl">📁 Rencana Tindak Lanjut (RTL)</button>
-        <button type="button" class="review-tab" data-tab="riwayat">📜 Riwayat Verifikasi & Tim Auditor</button>
-    </div>
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-tabs mb-3" id="detailTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="ringkasan-tab" data-bs-toggle="tab" data-bs-target="#ringkasan" type="button" role="tab">
+                <i class="bi bi-file-earmark-text me-1"></i>Ringkasan & Penilaian
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="temuan-tab" data-bs-toggle="tab" data-bs-target="#temuan" type="button" role="tab">
+                <i class="bi bi-exclamation-triangle me-1"></i>Temuan & Tindak Lanjut
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="riwayat-tab" data-bs-toggle="tab" data-bs-target="#riwayat" type="button" role="tab">
+                <i class="bi bi-clock-history me-1"></i>Riwayat
+            </button>
+        </li>
+    </ul>
 
-    <div class="row g-4" id="tab-ringkasan">
-        <div class="col-lg-8">
-            <div class="card-panel">
-                <h6 class="fw-bold mb-4" style="font-size: 1.15rem;">📊 Ringkasan Eksekutif & Tingkat Kematangan</h6>
-                <div class="row g-3 mb-4">
-                    <div class="col-4">
-                        <div class="mini-stat">
-                            <div class="num mini-num-navy"><?= esc($lha['skor_kematangan']) ?></div>
-                            <div class="lbl">Skor Kematangan COBIT</div>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="mini-stat">
-                            <div class="num mini-num-red"><?= esc($lha['total_temuan']) ?></div>
-                            <div class="lbl">Total Temuan Audit</div>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="mini-stat">
-                            <div class="num mini-num-orange"><?= esc($lha['kesiapan_rtl']) ?>%</div>
-                            <div class="lbl">Kesiapan RTL Auditee</div>
-                        </div>
-                    </div>
+    <!-- Tab Content -->
+    <div class="tab-content" id="detailTabsContent">
+
+        <!-- TAB 1: Ringkasan & Penilaian -->
+        <div class="tab-pane fade show active" id="ringkasan" role="tabpanel">
+            <!-- Daftar Pertanyaan -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-list-check me-2"></i>Daftar Pertanyaan untuk Audit Ini</h6>
+                    <small class="text-muted">Total: <?= (int) $totalQuestions ?> pertanyaan</small>
                 </div>
-                <div class="catatan-eksekutif">
-                    <b>Catatan Eksekutif Auditor:</b> <?= $lha['catatan_eksekutif'] ?>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <?php if (!empty($assignedQuestions)): ?>
+                            <?php foreach ($assignedQuestions as $q): ?>
+                                <div class="list-group-item d-flex align-items-start gap-3 py-3">
+                                    <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                                    <div class="flex-grow-1">
+                                        <span class="badge bg-secondary me-2"><?= esc((string) ($q->clause_code ?? '-')) ?></span>
+                                        <span><?= esc((string) ($q->question_text ?? '-')) ?></span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <div class="p-4 text-center text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                Tidak ada pertanyaan yang di-assign untuk audit ini.
+                            </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
 
-            <div class="card-panel">
-                <h6 class="fw-bold mb-4" style="font-size: 1.15rem;">🔍 Rincian Temuan Audit Utama (Sesuai Metode 5C)</h6>
-                <?php foreach ($lha['temuan'] as $t): ?>
-                    <div class="temuan-block">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <div class="temuan-kode">KODE TEMUAN: <?= esc($t['kode']) ?> | <?= esc($t['standar']) ?></div>
-                                <div class="temuan-judul"><?= esc($t['judul']) ?></div>
-                            </div>
-                            <span class="risk-pill <?= esc($t['risiko']) ?>">🔴 <?= esc($t['risiko_label']) ?></span>
-                        </div>
-                        <div class="c5-grid">
-                            <div>
-                                <div class="c5-label">1. Condition (Kondisi Saat Ini)</div>
-                                <div class="c5-text"><?= esc($t['condition']) ?></div>
-                            </div>
-                            <div>
-                                <div class="c5-label">2. Criteria (Standar / Kriteria)</div>
-                                <div class="c5-text"><?= esc($t['criteria']) ?></div>
-                            </div>
-                            <div>
-                                <div class="c5-label">3. Cause (Sebab Utama)</div>
-                                <div class="c5-text"><?= esc($t['cause']) ?></div>
-                            </div>
-                            <div>
-                                <div class="c5-label">4. Effect (Dampak Risiko)</div>
-                                <div class="c5-text"><?= esc($t['effect']) ?></div>
-                            </div>
-                        </div>
-                        <div class="rekomendasi-label">💡 Rekomendasi Auditor (Recommendation):</div>
-                        <div class="rekomendasi-text"><?= esc($t['rekomendasi']) ?></div>
-                    </div>
-                <?php endforeach; ?>
+            <!-- Skor Akhir Audit -->
+            <div class="card border-0 shadow-sm mb-4" style="background: var(--primary-navy, #273272); color: white;">
+                <div class="card-body text-center py-4">
+                    <h6 class="text-uppercase mb-2" style="letter-spacing: 1px;">Skor Akhir Audit</h6>
+                    <h1 class="display-3 fw-bold mb-2"><?= esc((string) number_format((float) $finalScorePercent, 0)) ?>%</h1>
+                    <p class="mb-0 opacity-75">Tingkat Kepatuhan (Compliance Rate) - Skala 0-100%</p>
+                </div>
             </div>
-        </div>
 
-        <div class="col-lg-4">
-            <div class="card-panel panel-pengesahan">
-                <h6 class="mb-4">🖋️ Hasil Pengesahan Direktur</h6>
-                <?php if ($lha['status'] === 'disetujui' || $lha['status'] === 'revisi'): ?>
-                    <?php if ($lha['status'] === 'disetujui'): ?>
-                        <div class="decided-box approved">
-                            ✅ LHA ini sudah <b>disahkan & disetujui</b>, menunggu tindak lanjut oleh Auditee.
-                        </div>
+            <!-- Rincian Penilaian per Pertanyaan -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-list-ol me-2"></i>Rincian Penilaian per Pertanyaan</h6>
+                </div>
+                <div class="card-body p-0">
+                    <?php if (!empty($assignedQuestions)): ?>
+                        <?php $no = 1;
+                        foreach ($assignedQuestions as $q):
+                            $isSesuai = ($q->score !== null && (float) $q->score > 0);
+                            $statusBadge = $isSesuai
+                                ? '<span class="badge bg-success rounded-pill"><i class="bi bi-check-circle me-1"></i>Sesuai</span>'
+                                : '<span class="badge bg-danger rounded-pill"><i class="bi bi-x-circle me-1"></i>Tidak Sesuai</span>';
+                        ?>
+                            <div class="border-bottom p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge bg-primary me-2"><?= (int) $no++ ?></span>
+                                        <span class="badge bg-secondary me-2"><?= esc((string) ($q->clause_code ?? '-')) ?></span>
+                                    </div>
+                                    <?= $statusBadge ?>
+                                </div>
+                                <h6 class="fw-bold mb-3"><?= esc((string) ($q->question_text ?? '-')) ?></h6>
+
+                                <div class="bg-light p-3 rounded">
+                                    <small class="text-primary fw-bold"><i class="bi bi-reply me-1"></i>Jawaban Auditee:</small>
+                                    <p class="mb-0 mt-1"><?= esc((string) ($q->answer ?? '(Belum dijawab)')) ?></p>
+                                </div>
+
+                                <?php if (!empty($q->evidence_filename)): ?>
+                                    <div class="mt-2">
+                                        <small class="text-muted"><i class="bi bi-paperclip me-1"></i>Bukti: <?= esc((string) $q->evidence_filename) ?></small>
+                                    </div>
+                                <?php endif; ?>
+
+                                <?php if (!empty($q->note)): ?>
+                                    <div class="mt-2">
+                                        <small class="text-muted"><i class="bi bi-chat-left-text me-1"></i>Catatan: <?= esc((string) $q->note) ?></small>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        <?php endforeach; ?>
                     <?php else: ?>
-                        <div class="decided-box revised">
-                            💬 LHA ini <b>dikembalikan untuk revisi</b> ke Auditor/SPI.
+                        <div class="p-4 text-center text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                            Belum ada penilaian untuk audit ini.
                         </div>
                     <?php endif; ?>
+                </div>
+            </div>
+        </div>
 
-                    <label class="form-label small fw-semibold">Arahan / Catatan Strategis Pimpinan:</label>
-                    <div class="arahan-readonly">
-                        <?= nl2br(esc(! empty($lha['catatan_pimpinan']) ? $lha['catatan_pimpinan'] : '(Tidak ada catatan yang dituliskan pimpinan.)')) ?>
-                    </div>
-                    <div class="arahan-meta">
-                        <?= $lha['status'] === 'disetujui' ? 'Disahkan' : 'Dikembalikan' ?> oleh <b><?= esc($lha['pimpinan_nama'] ?? 'Pimpinan') ?></b><br>
-                        pada <b><?= esc($lha['tanggal_keputusan'] ?? '-') ?></b>
-                        <div class="badge-pin-verified">✓ Terverifikasi PIN Otorisasi</div>
-                    </div>
+        <!-- TAB 2: Temuan & Tindak Lanjut -->
+        <div class="tab-pane fade" id="temuan" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Daftar Temuan & Tindak Lanjut</h6>
+                </div>
+                <div class="card-body p-0">
+                    <?php if (!empty($findings)): ?>
+                        <?php $no = 1;
+                        foreach ($findings as $f):
+                            $risikoClass = match (strtolower($f->tingkat_risiko ?? '')) {
+                                'kritis' => 'bg-danger',
+                                'tinggi' => 'bg-danger',
+                                'sedang' => 'bg-warning text-dark',
+                                'rendah' => 'bg-success',
+                                default => 'bg-secondary'
+                            };
+                            $statusClass = match (strtolower($f->status ?? '')) {
+                                'open' => 'bg-danger',
+                                'in_progress' => 'bg-info text-dark',
+                                'closed' => 'bg-success',
+                                default => 'bg-secondary'
+                            };
+                        ?>
+                            <div class="border-bottom p-4">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <div>
+                                        <span class="badge bg-primary me-2"><?= (int) $no++ ?></span>
+                                        <span class="badge bg-secondary me-2"><?= esc((string) ($f->clause_code ?? '-')) ?></span>
+                                        <span class="badge <?= $risikoClass ?> rounded-pill"><?= ucfirst((string) ($f->tingkat_risiko ?? '-')) ?></span>
+                                    </div>
+                                    <span class="badge <?= $statusClass ?> rounded-pill">
+                                        Status: <?= ucfirst(str_replace('_', ' ', $f->status ?? '')) ?>
+                                    </span>
+                                </div>
 
-                    <!-- ===== TANDA TANGAN DIGITAL ===== -->
-                    <?php if (! empty($lha['signature_path'])): ?>
-                        <div class="mt-4 pt-4" style="border-top: 1px solid #E2E8F0;">
-                            <label class="form-label small fw-semibold">Tanda Tangan Digital Pimpinan:</label>
-                            <div class="text-center p-4" style="background: #F8FAFC; border-radius: 10px; border: 2px dashed #CBD5E1;">
-                                <img src="<?= base_url($lha['signature_path']) ?>"
-                                    alt="Tanda Tangan Digital"
-                                    style="max-height: 120px; max-width: 300px;">
-                                <div class="mt-3">
-                                    <div class="badge bg-success mb-2" style="font-size: 0.75rem;">✓ SIGNED & VERIFIED</div>
-                                    <div class="fw-bold"><?= esc($lha['pimpinan_nama'] ?? 'Pimpinan') ?></div>
-                                    <div class="text-muted small"><?= esc($lha['pimpinan_jabatan'] ?? 'Pimpinan') ?></div>
+                                <div class="mb-3">
+                                    <strong class="text-dark">Deskripsi Temuan:</strong>
+                                    <p class="mb-0 mt-1"><?= nl2br(esc((string) ($f->deskripsi_temuan ?? '-'))) ?></p>
+                                </div>
+
+                                <div class="mb-3">
+                                    <strong class="text-primary"><i class="bi bi-lightbulb me-1"></i>Rekomendasi Auditor:</strong>
+                                    <p class="mb-0 mt-1"><?= esc((string) ($f->rekomendasi ?? '-')) ?></p>
+                                </div>
+
+                                <div class="bg-light p-3 rounded">
+                                    <strong class="text-success"><i class="bi bi-arrow-repeat me-1"></i>Rencana Tindak Lanjut (Auditee):</strong>
+                                    <?php if (!empty($f->rtl)): ?>
+                                        <p class="mb-0 mt-1"><?= esc((string) $f->rtl) ?></p>
+                                    <?php else: ?>
+                                        <p class="mb-0 mt-1 text-muted fst-italic">Auditee belum membuat Rencana Tindak Lanjut.</p>
+                                    <?php endif; ?>
+                                </div>
+
+                                <?php if (!empty($f->bukti_perbaikan)): ?>
+                                    <div class="mt-3">
+                                        <strong class="text-success"><i class="bi bi-check2-circle me-1"></i>Bukti Perbaikan:</strong>
+                                        <p class="mb-0 mt-1"><?= esc((string) $f->bukti_perbaikan) ?></p>
+                                    </div>
+                                <?php endif; ?>
+
+                                <!-- Tombol Aksi Monitoring Temuan -->
+                                <div class="mt-3 text-end">
+                                    <a href="/pimpinan/rtl/detail/<?= (int) $f->id ?>"
+                                        class="btn btn-sm btn-outline-primary"
+                                        title="Lihat Detail Monitoring Temuan">
+                                        <i class="bi bi-eye me-1"></i>Lihat Detail Monitoring
+                                    </a>
                                 </div>
                             </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="p-5 text-center text-muted">
+                            <i class="bi bi-check-circle fs-1 d-block mb-2 text-success"></i>
+                            <h5>Tidak Ada Temuan</h5>
+                            <p class="mb-0">Audit ini tidak memiliki temuan ketidaksesuaian.</p>
                         </div>
                     <?php endif; ?>
-                    <!-- ===== END TANDA TANGAN ===== -->
+                </div>
+            </div>
+        </div>
 
-                    <div class="sertifikat-note">
-                        Pengesahan ini menggunakan sertifikat digital terenkripsi SHA-256 Polban Internal Security.
+        <!-- TAB 3: Riwayat -->
+        <div class="tab-pane fade" id="riwayat" role="tabpanel">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2"></i>Riwayat Audit</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Aktivitas</th>
+                                    <th>Oleh</th>
+                                    <th>Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><?= date('d M Y', strtotime($audit->created_at ?? 'now')) ?></td>
+                                    <td>Audit Dibuat</td>
+                                    <td><?= esc((string) ($audit->auditor_name ?? '-')) ?></td>
+                                    <td>Rencana audit dibuat untuk periode <?= esc((string) ($audit->nama_periode ?? '-')) ?></td>
+                                </tr>
+                                <?php if ($audit->updated_at): ?>
+                                    <tr>
+                                        <td><?= date('d M Y', strtotime($audit->updated_at)) ?></td>
+                                        <td>Audit Diperbarui</td>
+                                        <td><?= esc((string) ($audit->auditor_name ?? '-')) ?></td>
+                                        <td>Status terakhir: <?= ucfirst(str_replace('_', ' ', $audit->status ?? '')) ?></td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
-                <?php else: ?>
-                    <div class="decided-box pending-doc" style="text-align:center;">
-                        📄 Dokumen LHA ini <b>belum disetorkan</b> oleh Auditor.
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <div class="card-panel" id="tab-rtl" style="display:none;">
-        <h6 class="fw-bold mb-4" style="font-size: 1.15rem;">📁 Rencana Tindak Lanjut (RTL)</h6>
-        <div class="alert alert-info mb-4">
-            <strong>Info:</strong> RTL akan tersedia setelah LHA disahkan oleh Pimpinan.
-        </div>
-        <div class="row g-3">
-            <div class="col-md-4">
-                <div class="p-4 border rounded bg-light">
-                    <div class="text-muted small">Total Temuan</div>
-                    <div class="fw-bold fs-3"><?= esc($lha['total_temuan']) ?></div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="p-4 border rounded bg-light">
-                    <div class="text-muted small">RTL Selesai</div>
-                    <div class="fw-bold fs-3">0</div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="p-4 border rounded bg-light">
-                    <div class="text-muted small">Dalam Proses</div>
-                    <div class="fw-bold fs-3">0</div>
-                </div>
-            </div>
-        </div>
-        <p class="text-muted mb-0 mt-4">Rencana Tindak Lanjut akan ditampilkan setelah dokumen LHA disahkan.</p>
-    </div>
-
-    <div class="card-panel" id="tab-riwayat" style="display:none;">
-        <h6 class="fw-bold mb-4" style="font-size: 1.15rem;">📜 Riwayat Verifikasi & Tim Auditor</h6>
-        <div class="table-responsive">
-            <table class="table table-sm table-bordered">
-                <thead class="table-light">
-                    <tr>
-                        <th>Tanggal</th>
-                        <th>Aktivitas</th>
-                        <th>Oleh</th>
-                        <th>Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><?= esc($lha['tanggal'] ?? '-') ?></td>
-                        <td>Dokumen LHA Diajukan</td>
-                        <td><?= esc($lha['lead_auditor']) ?></td>
-                        <td>Dokumen awal diajukan untuk review</td>
-                    </tr>
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const tabs = document.querySelectorAll('.review-tab');
-        const panels = {
-            ringkasan: document.getElementById('tab-ringkasan'),
-            rtl: document.getElementById('tab-rtl'),
-            riwayat: document.getElementById('tab-riwayat'),
-        };
-
-        tabs.forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-
-                Object.keys(panels).forEach(function(key) {
-                    panels[key].style.display = (key === tab.dataset.tab) ? '' : 'none';
-                });
-            });
-        });
-    });
-</script>
 <?= $this->endSection() ?>

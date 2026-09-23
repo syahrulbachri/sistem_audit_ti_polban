@@ -1,15 +1,17 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Controllers\Pimpinan;
 
 use App\Controllers\BaseController;
 
-class ProfileController extends BaseController
+class PimpinanProfileController extends BaseController
 {
-
     public function index()
     {
         if (!session()->get('logged_in')) {
+            return redirect()->to('/')->with('error', 'Silakan login terlebih dahulu.');
+        }
+        if (session()->get('role') !== 'pimpinan') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -29,9 +31,22 @@ class ProfileController extends BaseController
         ]);
     }
 
+    public function edit()
+    {
+        return $this->index();
+    }
+
+    public function updateIdentity()
+    {
+        return $this->update();
+    }
+
     public function update()
     {
         if (!session()->get('logged_in')) {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+        if (session()->get('role') !== 'pimpinan') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
@@ -46,7 +61,6 @@ class ProfileController extends BaseController
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        // Ambil data user saat ini (perlu tahu nama file foto lama, untuk dihapus/diganti)
         $currentUser = $db->table('users')->where('id', $userId)->get()->getRow();
 
         $data = [
@@ -54,7 +68,6 @@ class ProfileController extends BaseController
             'updated_at' => date('Y-m-d H:i:s')
         ];
 
-        // Jika user mengisi password baru, update juga
         $newPassword = $this->request->getPost('new_password');
         if (!empty($newPassword)) {
             $data['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
@@ -63,13 +76,11 @@ class ProfileController extends BaseController
         $folder = FCPATH . 'uploads/profile_photos';
 
         if ($this->request->getPost('remove_photo') === '1') {
-            // Hapus foto profil yang sedang aktif
             if (!empty($currentUser->photo) && is_file($folder . DIRECTORY_SEPARATOR . $currentUser->photo)) {
                 @unlink($folder . DIRECTORY_SEPARATOR . $currentUser->photo);
             }
             $data['photo'] = null;
         } else {
-            // Upload foto baru (jika ada file yang dipilih)
             $file = $this->request->getFile('photo');
             if ($file && $file->isValid() && !$file->hasMoved()) {
                 $allowed = ['jpg', 'jpeg', 'png', 'webp'];
@@ -89,7 +100,6 @@ class ProfileController extends BaseController
                 $newName = 'user_' . $userId . '_' . time() . '.' . $ext;
                 $file->move($folder, $newName);
 
-                // Hapus foto lama supaya tidak menumpuk file yatim
                 if (!empty($currentUser->photo) && is_file($folder . DIRECTORY_SEPARATOR . $currentUser->photo)) {
                     @unlink($folder . DIRECTORY_SEPARATOR . $currentUser->photo);
                 }
@@ -100,7 +110,6 @@ class ProfileController extends BaseController
 
         $db->table('users')->where('id', $userId)->update($data);
 
-        // Sinkronkan session supaya nama & foto di topbar langsung berubah tanpa perlu login ulang
         session()->set('fullname', $data['fullname']);
         if (array_key_exists('photo', $data)) {
             if ($data['photo'] === null) {
@@ -110,6 +119,6 @@ class ProfileController extends BaseController
             }
         }
 
-        return redirect()->back()->with('success', 'Profil berhasil diperbarui!');
+        return redirect()->to('/pimpinan/profile')->with('success', 'Profil berhasil diperbarui!');
     }
 }

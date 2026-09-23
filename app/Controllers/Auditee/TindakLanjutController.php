@@ -141,8 +141,8 @@ class TindakLanjutController extends BaseController
             return redirect()->back()->with('error', 'Format file tidak diizinkan.');
         }
 
-        // Simpan file ke public/uploads/bukti
-        $folder = FCPATH . 'uploads/bukti';
+        // PERBAIKAN: Simpan file ke public/uploads/bukti_perbaikan (sesuai struktur folder)
+        $folder = FCPATH . 'uploads/bukti_perbaikan';
         if (!is_dir($folder))
             mkdir($folder, 0777, true);
         $file->move($folder, $file->getClientName());

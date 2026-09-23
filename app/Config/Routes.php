@@ -119,13 +119,12 @@ $routes->get('/auditee/log-aktivitas', 'Auditee\DashboardAuditeeController::logA
 $routes->get('/pimpinan/dashboard', 'Pimpinan\DashboardPimpinanController::index');
 
 // ===== ROUTE PIMPINAN =====
-
 $routes->group('pimpinan', function ($routes) {
     $routes->get('dashboard', 'Pimpinan\DashboardPimpinanController::index');
-    $routes->get('profile', 'Pimpinan\ProfileController::index');
-    $routes->get('profile/edit', 'Pimpinan\ProfileController::edit');
-    $routes->post('profile/update-identity', 'Pimpinan\ProfileController::updateIdentity');
-    $routes->post('profile/update', 'Pimpinan\ProfileController::update');
+    $routes->get('profile', 'Pimpinan\PimpinanProfileController::index');
+    $routes->get('profile/edit', 'Pimpinan\PimpinanProfileController::edit');
+    $routes->post('profile/update-identity', 'Pimpinan\PimpinanProfileController::updateIdentity');
+    $routes->post('profile/update', 'Pimpinan\PimpinanProfileController::update');
     $routes->get('lha', 'Pimpinan\LhaController::index');
     $routes->get('lha/review/(:segment)', 'Pimpinan\LhaController::review/$1');
     $routes->get('lha/detail/(:segment)', 'Pimpinan\LhaController::detail/$1');
@@ -133,4 +132,23 @@ $routes->group('pimpinan', function ($routes) {
     $routes->get('rtl', 'Pimpinan\RtlController::index');
     $routes->get('rtl/detail/(:segment)', 'Pimpinan\RtlController::detail/$1');
     $routes->get('arsip', 'Pimpinan\ArsipController::index');
+
+    // Route untuk preview & download bukti perbaikan RTL (Pimpinan)
+    // PERBAIKAN: route ini ada DI DALAM group('pimpinan'), jadi jangan tulis prefix
+    // 'pimpinan/' lagi — sebelumnya URL-nya jadi /pimpinan/pimpinan/rtl/...
+    $routes->get('rtl/view-bukti/(:num)', 'Pimpinan\RtlController::viewBukti/$1');
+    $routes->get('rtl/download-bukti/(:num)', 'Pimpinan\RtlController::downloadBukti/$1');
+
+    // Route Log Aktivitas Pimpinan
+    $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
+});
+
+// Route untuk akses file bukti perbaikan (public access)
+// PERBAIKAN: Tambahkan type hint 'string' pada parameter $filename
+$routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
+    $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
+    if (file_exists($filePath)) {
+        return $this->response->download($filePath, true);
+    }
+    throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
 });

@@ -3,7 +3,7 @@
 <?php
 /**
  * @var string $page_title
- * @var int $cakupan_sistem
+ * @var int $caupan_sistem
  * @var int $target_sistem
  * @var int $persentase_cakupan
  * @var float $skor_kematangan
@@ -317,7 +317,7 @@
         <div class="col-12 col-md-6 col-lg-4">
             <div class="card-stat-item">
                 <div class="title mb-2">Cakupan Sistem Teraudit</div>
-                <div class="value"><?= (int) $cakupan_sistem ?> / <?= (int) $target_sistem ?> <small>Unit TI</small>
+                <div class="value"><?= (int) $caupan_sistem ?> / <?= (int) $target_sistem ?> <small>Unit TI</small>
                 </div>
                 <div class="text-primary small mt-2 fw-semibold"><?= (int) $persentase_cakupan ?>% dari seluruh aset TI
                     Polban</div>
@@ -344,7 +344,7 @@
                     ];
                     foreach ($domains as $d):
                         $percent = ($d['value'] / 5) * 100;
-                        ?>
+                    ?>
                         <div class="maturity-row">
                             <div class="maturity-label"><?= esc($d['label']) ?></div>
                             <div class="maturity-track">
@@ -427,7 +427,7 @@
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("DOMContentLoaded", function() {
         const ctx = document.getElementById('riskDonutChart').getContext('2d');
 
         // Data dinamis dari PHP
@@ -489,7 +489,7 @@
                     },
                     tooltip: {
                         callbacks: {
-                            label: function (context) {
+                            label: function(context) {
                                 if (!hasData) return 'Belum ada data';
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                 const pct = total > 0 ? Math.round((context.raw / total) * 100) : 0;
@@ -506,7 +506,7 @@
                             size: 12
                         },
                         display: hasData,
-                        formatter: function (value, context) {
+                        formatter: function(value, context) {
                             if (!hasData) return '';
                             const total = context.dataset.data.reduce((a, b) => a + b, 0);
                             const pct = total > 0 ? Math.round((value / total) * 100) : 0;

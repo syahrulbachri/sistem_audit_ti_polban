@@ -20,11 +20,10 @@
             overflow-x: hidden;
         }
 
-        /* SIDEBAR - Opsi 3: Header tetap, menu scroll, footer tetap */
+        /* SIDEBAR */
         .sidebar {
             min-height: 100vh;
             height: 100vh;
-            /* ✅ TAMBAHKAN: tinggi tetap 100vh */
             background-color: var(--primary-navy);
             color: white;
             width: 220px;
@@ -34,14 +33,10 @@
             z-index: 1000;
             transition: transform 0.3s ease-in-out;
             display: flex;
-            /* ✅ TAMBAHKAN: flexbox */
             flex-direction: column;
-            /* ✅ TAMBAHKAN: arah vertikal */
             overflow: hidden;
-            /* ✅ TAMBAHKAN: cegah sidebar utama scroll */
         }
 
-        /* Header sidebar (logo): TETAP DI ATAS */
         .sidebar-brand {
             font-size: 0.95rem;
             font-weight: 700;
@@ -51,7 +46,6 @@
             align-items: center;
             gap: 10px;
             flex-shrink: 0;
-            /* ✅ TAMBAHKAN: tidak ikut mengecil */
         }
 
         .sidebar-brand img {
@@ -62,21 +56,13 @@
             flex-shrink: 0;
         }
 
-        .sidebar-brand span {
-            line-height: 1.2;
-        }
-
-        /* ✅ TAMBAHKAN: Wrapper untuk menu yang bisa di-scroll */
         .sidebar-menu-container {
             flex-grow: 1;
-            /* ✅ Menu mengambil sisa ruang */
             overflow-y: auto;
-            /* ✅ Bisa di-scroll vertikal */
             overflow-x: hidden;
             padding-bottom: 10px;
         }
 
-        /* Mempercantik scrollbar untuk menu */
         .sidebar-menu-container::-webkit-scrollbar {
             width: 6px;
         }
@@ -94,14 +80,11 @@
             background: rgba(255, 255, 255, 0.5);
         }
 
-        /* Tombol Keluar: TETAP DI BAWAH */
         .sidebar-footer {
             flex-shrink: 0;
-            /* ✅ Tidak ikut mengecil */
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             padding: 10px 16px;
             margin-top: auto;
-            /* ✅ Dorong ke paling bawah */
         }
 
         .sidebar-footer .nav-link {
@@ -109,7 +92,6 @@
             border-radius: 8px;
         }
 
-        /* CSS untuk nav-link tetap sama */
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.7) !important;
             padding: 10px 16px;
@@ -179,15 +161,6 @@
             font-weight: bold;
         }
 
-        .badge-navy {
-            background-color: #273272 !important;
-            color: white !important;
-        }
-
-        .border-navy {
-            border-color: #273272 !important;
-        }
-
         @media (max-width: 991.98px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -232,7 +205,7 @@
 
     <!-- Main Content Area -->
     <div class="main-content">
-        <!-- Panggil Topbar -->
+        <!-- Panggil Topbar (Di sinilah judul halaman akan muncul) -->
         <?= $this->include('layouts/partials/topbar') ?>
 
         <!-- Konten Dinamis dari View Anak -->
@@ -247,8 +220,10 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('overlay').classList.toggle('active');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            if (sidebar) sidebar.classList.toggle('active');
+            if (overlay) overlay.classList.toggle('active');
         }
     </script>
 </body>
