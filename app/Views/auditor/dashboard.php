@@ -1,6 +1,15 @@
 <?= $this->extend('layouts/main') ?>
 
 <?= $this->section('content') ?>
+<style>
+    .border-navy {
+        border-color: var(--primary-navy) !important;
+    }
+    .badge-navy {
+        background-color: var(--primary-navy) !important;
+        color: #ffffff !important; /* Teks putih agar kontras dengan background navy */
+    }
+</style>
 <h4 class="fw-bold mb-4 d-none d-lg-block" style="color: var(--primary-navy);">Dashboard Auditor</h4>
 
 <!-- Statistik Cards -->
