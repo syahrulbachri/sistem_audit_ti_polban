@@ -113,6 +113,12 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link <?= uri_string() == 'auditee/daftar-audit' ? 'active' : '' ?>"
+                        href="/auditee/daftar-audit" onclick="if(window.innerWidth < 992) toggleSidebar()">
+                        <i class="bi bi-list-check"></i> Daftar Audit
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link <?= $currentUri === 'profile' ? 'active' : '' ?>" href="/profile"
                         onclick="if(window.innerWidth < 992) toggleSidebar()">
                         <i class="bi bi-person-circle"></i> Profil Saya
