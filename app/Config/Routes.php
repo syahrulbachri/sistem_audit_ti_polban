@@ -34,6 +34,7 @@ $routes->post('/admin/periodes/store', 'Admin\PeriodeController::store');
 $routes->get('/admin/periodes/edit/(:num)', 'Admin\PeriodeController::edit/$1');
 $routes->post('/admin/periodes/update/(:num)', 'Admin\PeriodeController::update/$1');
 $routes->get('/admin/periodes/toggle/(:num)', 'Admin\PeriodeController::toggle/$1');
+$routes->get('/admin/periodes/aktifkan/(:num)', 'Admin\PeriodeController::aktifkan/$1');
 $routes->get('/admin/periodes/delete/(:num)', 'Admin\PeriodeController::delete/$1');
 // Admin Routes - Kelola Framework / Standar
 $routes->get('/admin/frameworks', 'Admin\FrameworkController::index');
