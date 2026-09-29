@@ -77,6 +77,15 @@ class DashboardAdminController extends BaseController
             ->get()
             ->getResult();
 
+         // ===== DATA: Periode yang Siap Diaktifkan (Pengingat) =====
+        $today = date('Y-m-d');
+        $periode_siap_aktif = $db->table('periodes')
+            ->where('tanggal_mulai <=', $today)
+            ->where('status', 'draft')
+            ->orderBy('tanggal_mulai', 'ASC')
+            ->get()
+            ->getResult();
+
         return view('admin/dashboard', [
             'title'             => 'Dashboard Admin - Sistem Audit IT POLBAN',
             'page_title'        => 'Dashboard Admin',
@@ -85,7 +94,8 @@ class DashboardAdminController extends BaseController
             'statusTemuan'      => $statusTemuan,
             'periodes_terbaru'  => $periodes_terbaru,
             'audits_terbaru'    => $audits_terbaru,
-            'allPeriodes'       => $allPeriodes
+            'allPeriodes'       => $allPeriodes,
+            'periode_siap_aktif'=> $periode_siap_aktif 
         ]);
     }
 

@@ -115,7 +115,7 @@ class PeriodeController extends BaseController
             'tahun'           => $tahun,
             'tanggal_mulai'   => $tanggalMulai,
             'tanggal_selesai' => $tanggalSelesai,
-            'status'          => 'closed',
+            'status'          => 'draft',
             'created_at'      => date('Y-m-d H:i:s')
         ]);
 
@@ -262,6 +262,42 @@ class PeriodeController extends BaseController
 
         return redirect()->to('/admin/periodes')
             ->with('success', 'Status periode berhasil diubah menjadi ' . ucfirst($newStatus) . '!');
+    }
+
+            public function aktifkan($id)
+    {
+        if (!session()->get('logged_in') || session()->get('role') !== 'admin') {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $db = \Config\Database::connect();
+        $today = date('Y-m-d');
+
+        $periode = $db->table('periodes')->where('id', $id)->get()->getRow();
+
+        if (!$periode) {
+            return redirect()->back()->with('error', 'Periode tidak ditemukan.');
+        }
+
+        // Validasi: Hanya periode draft yang bisa diaktifkan via reminder
+        if ($periode->status !== 'draft') {
+            return redirect()->back()->with('error', 'Periode ini tidak dalam status draft.');
+        }
+
+        // Validasi Logika Pembimbing: Tidak boleh diaktifkan sebelum tanggal mulai
+        if ($periode->tanggal_mulai > $today) {
+            return redirect()->back()->with('error', 'Periode ini belum memasuki tanggal mulai. Tidak dapat diaktifkan secara paksa.');
+        }
+
+        // Ubah status menjadi open
+        $db->table('periodes')->where('id', $id)->update([
+            'status' => 'open'
+        ]);
+
+        log_activity('UPDATE', 'periodes', 'Mengaktifkan periode: ' . $periode->nama_periode);
+
+        return redirect()->to('/admin/dashboard')
+            ->with('success', 'Periode "' . $periode->nama_periode . '" berhasil diaktifkan!');
     }
 
     public function delete($id)

@@ -7,6 +7,7 @@
         transition: all 0.2s;
         padding: 6px 14px;
         font-size: 0.85rem;
+        font-weight: 500;
     }
     .badge-status:hover {
         transform: scale(1.05);
@@ -67,7 +68,22 @@
                 </thead>
                 <tbody>
                     <?php if(!empty($periodes)): ?>
-                        <?php foreach($periodes as $p): ?>
+                        <?php foreach($periodes as $p): 
+                            // Logika penentuan warna dan teks badge berdasarkan status
+                            $statusClass = match($p->status) {
+                                'open' => 'bg-success',
+                                'closed' => 'bg-danger',
+                                'draft' => 'bg-secondary',
+                                default => 'bg-secondary'
+                            };
+                            
+                            $statusText = match($p->status) {
+                                'open' => 'Open',
+                                'closed' => 'Closed',
+                                'draft' => 'Draft',
+                                default => 'Unknown'
+                            };
+                        ?>
                         <tr>
                             <td><strong><?= $p->id ?></strong></td>
                             <td>
@@ -81,9 +97,9 @@
                             <td><?= date('d M Y', strtotime($p->tanggal_selesai)) ?></td>
                             <td>
                                 <a href="/admin/periodes/toggle/<?= $p->id ?>" 
-                                   class="badge badge-status text-decoration-none rounded-pill <?= $p->status === 'open' ? 'bg-success' : 'bg-secondary' ?>"
-                                   title="Klik untuk toggle status">
-                                    <?= $p->status === 'open' ? '🟢 Open' : '⚫ Closed' ?>
+                                   class="badge badge-status text-decoration-none rounded-pill text-white <?= $statusClass ?>"
+                                   title="Klik untuk mengubah status (Open <-> Closed/Draft)">
+                                    <?= $statusText ?>
                                 </a>
                             </td>
                             <td class="text-center">
@@ -92,7 +108,7 @@
                                 </a>
                                 <a href="/admin/periodes/delete/<?= $p->id ?>" 
                                    class="btn btn-sm btn-outline-danger" 
-                                   onclick="return confirm('Yakin ingin menghapus periode ini?')" 
+                                   onclick="return confirm('Yakin ingin menghapus periode ini? Data periode yang sudah memiliki audit tidak dapat dihapus.')" 
                                    title="Hapus">
                                     <i class="bi bi-trash"></i>
                                 </a>
