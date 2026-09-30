@@ -14,6 +14,13 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
+<!-- ⬇️ TEMPEL BLOK INI (peringatan file ditolak) ⬇️ -->
+<?php if (session()->getFlashdata('warning')): ?>
+    <div class="alert alert-warning alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><?= session()->getFlashdata('warning') ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
 <?php if (session()->getFlashdata('error')): ?>
     <div class="alert alert-danger alert-dismissible fade show">
         <i class="bi bi-exclamation-triangle-fill me-2"></i><?= session()->getFlashdata('error') ?>
@@ -46,6 +53,14 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
         <strong>terkunci</strong>.
     </div>
 <?php endif; ?>
+
+<!-- Peringatan upload dari dalam website (bukan popup browser) -->
+<div id="uploadWarning" class="alert alert-danger alert-dismissible fade show d-none shadow-sm" role="alert"
+    style="border-left: 5px solid #dc3545;">
+    <i class="bi bi-exclamation-octagon-fill me-2"></i>
+    <strong>Upload dibatalkan!</strong> <span id="uploadWarningText"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
 
 <form action="/auditee/save-answer/<?= $audit->id ?>" method="post" enctype="multipart/form-data">
     <?= csrf_field() ?>
@@ -111,5 +126,53 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
         </div>
     <?php endif; ?>
 </form>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var MAX = 5 * 1024 * 1024; // 5 MB
+        var box = document.getElementById('uploadWarning');
+        var txt = document.getElementById('uploadWarningText');
+        if (!box || !txt) return;
+
+        function showWarning(pesan) {
+            txt.textContent = pesan;
+            box.classList.remove('d-none');
+            box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            clearTimeout(box._timer);
+            box._timer = setTimeout(function () { box.classList.add('d-none'); }, 10000);
+        }
+
+        // 1) Cek begitu user memilih file
+        document.querySelectorAll('input[type="file"]').forEach(function (inp) {
+            inp.addEventListener('change', function () {
+                var f = inp.files[0];
+                if (f && f.size > MAX) {
+                    var mb = (f.size / 1024 / 1024).toFixed(1);
+                    inp.value = ''; // file langsung dibuang dari pilihan
+                    inp.classList.add('is-invalid');
+                    setTimeout(function () { inp.classList.remove('is-invalid'); }, 5000);
+                    showWarning('File "' + f.name + '" berukuran ' + mb + ' MB — melebihi batas maksimal 5 MB, ' +
+                        'sehingga TIDAK diupload. Silakan kompres file atau bungkus menjadi ZIP terlebih dahulu.');
+                }
+            });
+        });
+
+        // 2) Pengaman terakhir saat tombol submit ditekan
+        document.querySelectorAll('form').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                var bad = [];
+                form.querySelectorAll('input[type="file"]').forEach(function (inp) {
+                    var f = inp.files[0];
+                    if (f && f.size > MAX) bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                });
+                if (bad.length) {
+                    e.preventDefault(); // batalkan pengiriman
+                    showWarning('File berikut melebihi 5 MB dan tidak ikut dikirim: ' + bad.join(', ') +
+                        '. Silakan kompres atau bungkus menjadi ZIP terlebih dahulu.');
+                }
+            });
+        });
+    });
+</script>
 
 <?= $this->endSection() ?>

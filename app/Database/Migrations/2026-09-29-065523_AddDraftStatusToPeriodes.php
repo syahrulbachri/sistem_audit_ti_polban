@@ -8,7 +8,7 @@ class AddDraftStatusToPeriodes extends Migration
 {
     public function up()
     {
-         $this->db->query("
+        $this->db->query("
             ALTER TABLE periodes
             MODIFY COLUMN status
             ENUM('draft', 'open', 'closed')
@@ -19,7 +19,7 @@ class AddDraftStatusToPeriodes extends Migration
 
     public function down()
     {
-         $this->db->query("
+        $this->db->query("
             ALTER TABLE periodes
             MODIFY COLUMN status
             ENUM('open', 'closed')

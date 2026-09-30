@@ -79,48 +79,61 @@ class FillAuditeeController extends BaseController
                 ]);
         }
 
-        // 2. Simpan bukti (jika ada yang diupload)
+        // 2. Simpan bukti (jika ada yang diupload) + catat berkas yang ditolak
+        $skipped = [];
         $files = $this->request->getFiles();
 
         if (isset($files['evidence']) && is_array($files['evidence'])) {
             foreach ($files['evidence'] as $assignmentId => $file) {
 
-                if (
-                    $file instanceof \CodeIgniter\HTTP\Files\UploadedFile &&
-                    $file->isValid() &&
-                    !$file->hasMoved()
-                ) {
-
-                    if ($file->getSize() > 5 * 1024 * 1024) {
-                        continue; // maks 5MB
-                    }
-
-                    $allowed = [
-                        'pdf',
-                        'jpg',
-                        'jpeg',
-                        'png',
-                        'doc',
-                        'docx',
-                        'xls',
-                        'xlsx',
-                        'zip'
-                    ];
-
-                    if (!in_array(strtolower($file->getClientExtension()), $allowed)) {
-                        continue;
-                    }
-
-                    $db->table('audit_question_assignments')
-                        ->where('id', $assignmentId)
-                        ->where('audit_id', $id)
-                        ->update([
-                            'evidence_file' => file_get_contents($file->getTempName()),
-                            'evidence_filename' => $file->getClientName(),
-                            'evidence_uploaded_at' => date('Y-m-d H:i:s'),
-                        ]);
+                if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile)) {
+                    continue;
                 }
+
+                // Input kosong (user tidak memilih file) → lewati tanpa error
+                if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+
+                $nama = $file->getClientName();
+                $ukuranMB = round($file->getSize() / 1024 / 1024, 1);
+
+                // ✅ BATAS KERAS 5 MB — file TIDAK akan disimpan sama sekali
+                if ($file->getSize() > 5 * 1024 * 1024) {
+                    $skipped[] = $nama . ' (' . $ukuranMB . ' MB) — melebihi batas maksimal 5 MB';
+                    continue;
+                }
+
+                // Error upload level server (mis. melebihi post_max_size php.ini)
+                if (!$file->isValid() || $file->hasMoved()) {
+                    $skipped[] = $nama . ' — gagal diupload (error server/limit PHP)';
+                    continue;
+                }
+
+                $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+                if (!in_array(strtolower($file->getClientExtension()), $allowed)) {
+                    $skipped[] = $nama . ' — format .' . strtolower($file->getClientExtension()) . ' tidak didukung';
+                    continue;
+                }
+
+                $db->table('audit_question_assignments')
+                    ->where('id', $assignmentId)
+                    ->where('audit_id', $id)
+                    ->update([
+                        'evidence_file' => file_get_contents($file->getTempName()),
+                        'evidence_filename' => $nama,
+                        'evidence_uploaded_at' => date('Y-m-d H:i:s'),
+                    ]);
             }
+        }
+
+        // ✅ Peringatan kuning tampil setelah redirect
+        if (!empty($skipped)) {
+            session()->setFlashdata(
+                'warning',
+                'PERHATIAN: Berkas berikut TIDAK ikut tersimpan → ' . implode('; ', $skipped) .
+                '. Silakan kompres atau bungkus menjadi ZIP (maks 5 MB) lalu unggah ulang.'
+            );
         }
 
         // 3. Jika tombol "Kirim ke Auditor" ditekan
@@ -270,129 +283,66 @@ class FillAuditeeController extends BaseController
                 ]);
         }
 
-        // 2. Simpan bukti baru (jika ada) & catat nama filenya
+        // 2. Simpan bukti baru (jika ada) + catat berkas yang ditolak
         $files = $this->request->getFiles();
 
         if (isset($files['evidence']) && is_array($files['evidence'])) {
-
             foreach ($files['evidence'] as $assignmentId => $file) {
 
-                if (
-                    $file instanceof \CodeIgniter\HTTP\Files\UploadedFile &&
-                    $file->isValid() &&
-                    !$file->hasMoved()
-                ) {
+                if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile))
+                    continue;
+                if ($file->getError() === UPLOAD_ERR_NO_FILE)
+                    continue;
 
-                    // Batas ukuran 5MB
-                    if ($file->getSize() > 5 * 1024 * 1024) {
-                        continue;
-                    }
+                $nama = $file->getClientName();
+                $ukuranMB = round($file->getSize() / 1024 / 1024, 1);
 
-                    $allowed = [
-                        'pdf',
-                        'jpg',
-                        'jpeg',
-                        'png',
-                        'doc',
-                        'docx',
-                        'xls',
-                        'xlsx',
-                        'zip'
-                    ];
-
-                    if (!in_array(strtolower($file->getClientExtension()), $allowed)) {
-                        continue;
-                    }
-
-                    // Ambil isi file
-                    $content = file_get_contents($file->getTempName());
-
-                    // Nama file asli
-                    $safeName = $file->getClientName();
-
-                    // Simpan file ke database
-                    $db->table('audit_question_assignments')
-                        ->where('id', $assignmentId)
-                        ->where('audit_id', $id)
-                        ->update([
-                            'evidence_file' => $content,
-                            'evidence_filename' => $safeName,
-                            'evidence_uploaded_at' => date('Y-m-d H:i:s')
-                        ]);
-
-                    /*
-                     * Simpan juga file fisik ke:
-                     * public/uploads/bukti_perbaikan
-                     *
-                     * supaya nilai temuans.bukti_perbaikan
-                     * memiliki file nyata di server.
-                     */
-                    $folder = FCPATH . 'uploads/bukti_perbaikan';
-
-                    if (!is_dir($folder)) {
-                        mkdir($folder, 0777, true);
-                    }
-
-                    file_put_contents(
-                        $folder . DIRECTORY_SEPARATOR . $safeName,
-                        $content
-                    );
-
-                    // Catat nama file yang berhasil diupload
-                    $uploadedNames[$assignmentId] = $safeName;
+                // ✅ BATAS KERAS 5 MB
+                if ($file->getSize() > 5 * 1024 * 1024) {
+                    $skipped[] = $nama . ' (' . $ukuranMB . ' MB) — melebihi batas maksimal 5 MB';
+                    continue;
                 }
+
+                if (!$file->isValid() || $file->hasMoved()) {
+                    $skipped[] = $nama . ' — gagal diupload (error server/limit PHP)';
+                    continue;
+                }
+
+                $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+                if (!in_array(strtolower($file->getClientExtension()), $allowed)) {
+                    $skipped[] = $nama . ' — format tidak didukung';
+                    continue;
+                }
+
+                $content = file_get_contents($file->getTempName());
+                $diskName = $file->getRandomName();
+
+                $db->table('audit_question_assignments')
+                    ->where('id', $assignmentId)
+                    ->where('audit_id', $id)
+                    ->update([
+                        'evidence_file' => $content,
+                        'evidence_filename' => $nama,
+                        'evidence_uploaded_at' => date('Y-m-d H:i:s')
+                    ]);
+
+                $folder = FCPATH . 'uploads/bukti_perbaikan';
+                if (!is_dir($folder)) {
+                    mkdir($folder, 0777, true);
+                }
+                file_put_contents($folder . DIRECTORY_SEPARATOR . $diskName, $content);
+
+                $uploadedNames[$assignmentId] = $diskName;
             }
         }
 
-        /*
-         * 3. KIRIM KE AUDITOR
-         *
-         * Gabungkan ID dari jawaban teks dan upload file
-         * agar tidak ada data yang terlewat.
-         */
-        $processedIds = array_unique(
-            array_merge(
-                array_keys($answers),
-                array_keys($uploadedNames)
-            )
-        );
-
-        foreach ($processedIds as $assignmentId) {
-
-            $assignment = $db->table('audit_question_assignments')
-                ->where('id', $assignmentId)
-                ->where('audit_id', $id)
-                ->get()
-                ->getRow();
-
-            if ($assignment) {
-
-                $dataTemuan = [
-                    // Revisi sudah dikirim kembali ke auditor
-                    'revisi_sent_at' => date('Y-m-d H:i:s'),
-
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
-
-                /*
-                 * Jika ada bukti baru,
-                 * sinkronkan nama file ke tabel temuans.
-                 */
-                if (isset($uploadedNames[$assignmentId])) {
-                    $dataTemuan['bukti_perbaikan'] =
-                        $uploadedNames[$assignmentId];
-                }
-
-                /*
-                 * HANYA temuan In_Progress
-                 * yang boleh dikirim melalui halaman revisi.
-                 */
-                $db->table('temuans')
-                    ->where('audit_id', $id)
-                    ->where('question_id', $assignment->question_id)
-                    ->where('status', 'In_Progress')
-                    ->update($dataTemuan);
-            }
+        // ✅ Peringatan kuning tampil setelah redirect
+        if (!empty($skipped)) {
+            session()->setFlashdata(
+                'warning',
+                'PERHATIAN: Berkas berikut TIDAK ikut tersimpan → ' . implode('; ', $skipped) .
+                '. Silakan kompres atau bungkus menjadi ZIP (maks 5 MB) lalu unggah ulang.'
+            );
         }
 
         // LOG AKTIVITAS: revisi + bukti dikirim ke auditor
