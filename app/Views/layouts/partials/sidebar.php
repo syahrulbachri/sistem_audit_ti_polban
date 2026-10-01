@@ -33,13 +33,13 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= $isActive('admin/questions') ? 'active' : '' ?>" href="/admin/questions">
-                        <i class="bi bi-question-circle-fill"></i> Template Pertanyaan
+                    <a class="nav-link <?= $isActive('admin/frameworks') ? 'active' : '' ?>" href="/admin/frameworks">
+                        <i class="bi bi-book-fill"></i> Manajemen Framework
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link <?= $isActive('admin/frameworks') ? 'active' : '' ?>" href="/admin/frameworks">
-                        <i class="bi bi-book-fill"></i> Manajemen Framework
+                    <a class="nav-link <?= $isActive('admin/questions') ? 'active' : '' ?>" href="/admin/questions">
+                        <i class="bi bi-question-circle-fill"></i> Template Pertanyaan
                     </a>
                 </li>
                 <li class="nav-item">
