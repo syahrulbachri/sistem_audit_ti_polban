@@ -57,35 +57,6 @@
 
 <h4 class="fw-bold mb-4" style="color: var(--primary-navy);">Dashboard Admin</h4>
 
-<!-- ===== ALERT PENGINGAT AKTIVASI PERIODE ===== -->
-<?php if (!empty($periode_siap_aktif)): ?>
-    <div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm mb-4" role="alert" style="background-color: #fff8e1; border-left: 5px solid #ffc107 !important;">
-        <div class="d-flex align-items-start">
-            <i class="bi bi-exclamation-triangle-fill text-warning fs-4 me-3 mt-1"></i>
-            <div class="flex-grow-1">
-                <h6 class="alert-heading fw-bold mb-2" style="color: #856404;">Perhatian: Periode Siap Diaktifkan</h6>
-                <p class="mb-3 small text-muted">Terdapat periode audit yang telah memasuki tanggal mulai, namun statusnya masih <em>Closed</em>. Silakan aktifkan agar Auditor dapat mulai membuat rencana audit.</p>
-                
-                <?php foreach ($periode_siap_aktif as $p): ?>
-                    <div class="d-flex align-items-center justify-content-between bg-white p-3 rounded mb-2 border">
-                        <div>
-                            <strong class="text-dark"><?= esc($p->nama_periode) ?></strong> 
-                            <span class="badge bg-secondary ms-2">Mulai: <?= date('d M Y', strtotime($p->tanggal_mulai)) ?></span>
-                        </div>
-                        <a href="/admin/periodes/aktifkan/<?= $p->id ?>" 
-                           class="btn btn-sm btn-warning text-dark fw-bold btn-konfirmasi-aktif" 
-                           data-nama="<?= esc($p->nama_periode) ?>">
-                            <i class="bi bi-power"></i> Aktifkan Sekarang
-                </a>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-    </div>
-<?php endif; ?>
-<!-- ===== AKHIR ALERT PENGINGAT ===== -->
-
 <!-- ===== CARDS: MANAJEMEN PENGGUNA ===== -->
 <h6 class="fw-bold mb-3 text-muted">Manajemen Pengguna</h6>
 <div class="row g-4 mb-4">

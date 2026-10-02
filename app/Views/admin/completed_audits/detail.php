@@ -131,6 +131,7 @@
 
             <div class="row g-3">
                 <div class="col-md-6"><small class="text-muted d-block">Periode</small><strong><?= esc($audit->nama_periode ?? '-') ?></strong></div>
+                <div class="col-md-6"><small class="text-muted d-block">Framework</small><strong><?= esc($audit->framework ?? '-') ?></strong></div> <!-- ✅ DITAMBAHKAN -->
                 <div class="col-md-6"><small class="text-muted d-block">Auditee</small><strong><?= esc($audit->auditee_name ?? '-') ?></strong></div>
                 <div class="col-md-6"><small class="text-muted d-block">Auditor</small><strong><?= esc($audit->auditor_name ?? '-') ?></strong></div>
                 <div class="col-md-6"><small class="text-muted d-block">Tanggal Selesai</small><strong><?= date('d M Y', strtotime($audit->updated_at)) ?></strong></div>
@@ -167,14 +168,31 @@
                                         </div>
                                     <?php endif; ?>
                                 </div>
+
+                                <!-- ✅ PERBAIKAN LOGIKA BADGE DI SINI -->
                                 <div class="text-end ms-3">
-                                    <span class="badge <?= $q->score == 1 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3 py-2">
-                                        <?= $q->score == 1 ? 'Sesuai' : 'Tidak Sesuai' ?>
-                                    </span>
+                                    <?php if ($isBinary): ?>
+                                        <!-- Jika Framework Biner (ISO): Tampilkan Sesuai / Tidak Sesuai -->
+                                        <span class="badge <?= ($q->score ?? 0) == 1 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3 py-2">
+                                            <?= ($q->score ?? 0) == 1 ? 'Sesuai' : 'Tidak Sesuai' ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <!-- Jika Framework Skala (COBIT): Tampilkan Angka Skor -->
+                                        <span class="badge bg-primary rounded-pill px-3 py-2" style="font-size: 0.9rem;">
+                                            Skor: <?= esc($q->score ?? 0) ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </div>
+                                <!-- ✅ AKHIR PERBAIKAN BADGE -->
+
                             </div>
                         </div>
                     <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="p-4 text-center text-muted">
+                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                        Tidak ada data pertanyaan untuk audit ini.
+                    </div>
                 <?php endif; ?>
             </div>
         </div>

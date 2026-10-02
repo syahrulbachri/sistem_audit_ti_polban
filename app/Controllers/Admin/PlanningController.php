@@ -364,6 +364,59 @@ class PlanningController extends BaseController
             ->with('success', 'Rencana audit berhasil diperbarui!');
     }
 
+    public function perpanjangDeadline()
+{
+    if (!session()->get('logged_in') || session()->get('role') !== 'admin') {
+        return $this->response->setJSON([
+            'status' => 'error', 
+            'message' => 'Akses ditolak.'
+        ])->setStatusCode(403);
+    }
+
+    $db = \Config\Database::connect();
+    $input = json_decode($this->request->getBody(), true);
+    
+    $auditId = $input['audit_id'] ?? null;
+    $tambahHari = $input['tambah_hari'] ?? null;
+    
+    if (!$auditId || !$tambahHari) {
+        return $this->response->setJSON([
+            'status' => 'error', 
+            'message' => 'Data tidak lengkap.'
+        ]);
+    }
+    
+    // Validasi: hanya audit yang belum selesai yang bisa diperpanjang
+    $audit = $db->table('audits')
+        ->where('id', $auditId)
+        ->whereNotIn('status', ['selesai'])
+        ->get()
+        ->getRow();
+    
+    if (!$audit) {
+        return $this->response->setJSON([
+            'status' => 'error', 
+            'message' => 'Audit tidak ditemukan atau sudah selesai.'
+        ]);
+    }
+    
+    // Hitung deadline baru
+    $deadlineBaru = date('Y-m-d', strtotime($audit->deadline . " + {$tambahHari} days"));
+    
+    // Update deadline
+    $db->table('audits')
+        ->where('id', $auditId)
+        ->update(['deadline' => $deadlineBaru]);
+    
+    // Catat log aktivitas
+    log_activity('UPDATE', 'audits', "Memperpanjang deadline audit '{$audit->title}' dari {$audit->deadline} menjadi {$deadlineBaru} (+{$tambahHari} hari)");
+    
+    return $this->response->setJSON([
+        'status' => 'success', 
+        'message' => "Deadline berhasil diperpanjang hingga " . date('d M Y', strtotime($deadlineBaru))
+    ]);
+}
+
     public function delete(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'admin') {

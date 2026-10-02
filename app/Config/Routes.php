@@ -51,6 +51,7 @@ $routes->get('/admin/planning/edit/(:num)', 'Admin\PlanningController::edit/$1')
 $routes->post('/admin/planning/update/(:num)', 'Admin\PlanningController::update/$1');
 $routes->get('/admin/planning/delete/(:num)', 'Admin\PlanningController::delete/$1');
 $routes->get('/admin/planning/detail/(:num)', 'Admin\PlanningController::detail/$1');
+$routes->post('/admin/planning/perpanjang-deadline', 'Admin\PlanningController::perpanjangDeadline'); // ← TAMBAHKAN INI
 // Monitoring Temuan (Admin)
 $routes->get('/admin/findings', 'Admin\FindingsController::index');
 $routes->get('/admin/findings/detail/(:num)', 'Admin\FindingsController::detail/$1');
