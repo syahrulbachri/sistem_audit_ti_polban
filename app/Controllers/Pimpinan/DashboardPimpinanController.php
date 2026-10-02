@@ -167,6 +167,53 @@ class DashboardPimpinanController extends BaseController
         });
         $temuanPrioritas = array_slice($temuanPrioritas, 0, 5);
 
+        // ==========================================================
+        // 5. TINGKAT KEMATANGAN PER DOMAIN COBIT 2019
+        // Dihitung dari rata-rata audit_question_assignments.score,
+        // dikelompokkan berdasarkan prefix domain pada clause_code
+        // (EDM01.01 -> EDM, APO01.01 -> APO, dst), hanya untuk audit
+        // yang sudah berstatus selesai. Tidak lagi hardcoded di view.
+        // ==========================================================
+        $domainLabels = [
+            'EDM' => 'EDM (Tata Kelola)',
+            'APO' => 'APO (Perencanaan)',
+            'BAI' => 'BAI (Pengembangan)',
+            'DSS' => 'DSS (Operasional)',
+            'MEA' => 'MEA (Pengawasan)',
+        ];
+
+        $domainRows = $db->table('audit_question_assignments as aqa')
+            ->select('aqa.score, aq.clause_code')
+            ->join('audit_questions as aq', 'aq.id = aqa.question_id')
+            ->join('audits', 'audits.id = aqa.audit_id')
+            ->where('aq.framework', 'COBIT 2019')
+            ->where('audits.status', 'selesai')
+            ->where('aqa.score IS NOT NULL')
+            ->get()
+            ->getResultArray();
+
+        $domainSums = [];
+        $domainCounts = [];
+        foreach ($domainRows as $row) {
+            if (!preg_match('/^([A-Za-z]+)/', (string) $row['clause_code'], $m)) {
+                continue;
+            }
+            $prefix = strtoupper($m[1]);
+            if (!isset($domainLabels[$prefix])) {
+                continue;
+            }
+            $domainSums[$prefix]   = ($domainSums[$prefix] ?? 0) + (float) $row['score'];
+            $domainCounts[$prefix] = ($domainCounts[$prefix] ?? 0) + 1;
+        }
+
+        $domains = [];
+        foreach ($domainLabels as $code => $label) {
+            $avg = (!empty($domainCounts[$code]))
+                ? round($domainSums[$code] / $domainCounts[$code], 1)
+                : 0.0;
+            $domains[] = ['label' => $label, 'value' => $avg];
+        }
+
         // ===== RETURN VIEW =====
         return view('pimpinan/dashboard', [
             'page_title'         => 'Dashboard Eksekutif',
@@ -179,6 +226,7 @@ class DashboardPimpinanController extends BaseController
             'total_temuan'       => (int) $totalTemuan,
             'risiko_counts'      => $risikoCounts,
             'temuan_prioritas'   => $temuanPrioritas,
+            'domains'            => $domains,
         ]);
     }
 }
