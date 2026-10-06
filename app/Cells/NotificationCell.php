@@ -9,22 +9,25 @@ class NotificationCell
         $db = \Config\Database::connect();
         $today = date('Y-m-d');
         $h3Date = date('Y-m-d', strtotime('+3 days'));
-        $yesterday = date('Y-m-d', strtotime('-1 day')); // Untuk audit yang selesai dalam 24 jam
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
         
         $role = session()->get('role');
         $userId = session()->get('id');
 
-        // Inisialisasi variabel
+        // ==========================================
+        // 1. INISIALISASI SEMUA VARIABEL DI SINI (PENTING!)
+        // ==========================================
         $periodeDraft = [];
         $auditOverdue = [];
         $auditH3 = [];
         $auditBaru = [];
+        $menungguPenilaian = []; // <-- INI YANG SEBELUMNYA KURANG
         $rtlPerluReview = [];
         $auditSelesai = [];
         $lhaSelesai = [];
 
         // ==========================================
-        // LOGIKA NOTIFIKASI BERDASARKAN ROLE
+        // 2. LOGIKA NOTIFIKASI BERDASARKAN ROLE
         // ==========================================
         
         if ($role === 'admin') {
@@ -54,12 +57,12 @@ class NotificationCell
                 ->orderBy('a.deadline', 'ASC')
                 ->get()->getResult();
 
-            // 4. Audit Baru Selesai (dalam 24 jam terakhir) - BARU!
+                        // 4. Audit Baru Selesai (HANYA yang BELUM dilihat Admin)
             $auditSelesai = $db->table('audits a')
                 ->select('a.id, a.title, p.nama_periode, a.updated_at')
                 ->join('periodes p', 'p.id = a.periode_id', 'left')
                 ->where('a.status', 'selesai')
-                ->where('a.updated_at >=', $yesterday)
+                ->where('a.admin_viewed_at', null) // <-- TAMBAHKAN BARIS INI
                 ->orderBy('a.updated_at', 'DESC')
                 ->limit(5)
                 ->get()->getResult();
@@ -75,7 +78,18 @@ class NotificationCell
                 ->limit(5)
                 ->get()->getResult();
 
-            // 2. RTL / Bukti Perbaikan Perlu Diverifikasi
+            // 2. Audit Menunggu Penilaian (Auditee sudah submit jawaban)
+            $menungguPenilaian = $db->table('audits a')
+                ->select('a.id, a.title, p.nama_periode, auditee.fullname as auditee_name')
+                ->join('periodes p', 'p.id = a.periode_id', 'left')
+                ->join('users auditee', 'auditee.id = a.auditee_id', 'left')
+                ->where('a.created_by_auditor', $userId)
+                ->where('a.status', 'menunggu_penilaian')
+                ->orderBy('a.updated_at', 'DESC')
+                ->limit(5)
+                ->get()->getResult();
+
+            // 3. RTL / Bukti Perbaikan Perlu Diverifikasi
             $rtlPerluReview = $db->table('temuans t')
                 ->select('t.id, q.clause_code, a.title as audit_title, auditee.fullname as auditee_name')
                 ->join('audits a', 'a.id = t.audit_id', 'left')
@@ -84,17 +98,6 @@ class NotificationCell
                 ->where('a.created_by_auditor', $userId)
                 ->where('t.status', 'In_Progress')
                 ->orderBy('t.updated_at', 'DESC')
-                ->limit(5)
-                ->get()->getResult();
-
-            // 3. Audit Selesai yang Ditugaskan ke Auditor Ini
-            $auditSelesai = $db->table('audits a')
-                ->select('a.id, a.title, p.nama_periode, a.updated_at')
-                ->join('periodes p', 'p.id = a.periode_id', 'left')
-                ->where('a.created_by_auditor', $userId)
-                ->where('a.status', 'selesai')
-                ->where('a.updated_at >=', $yesterday)
-                ->orderBy('a.updated_at', 'DESC')
                 ->limit(5)
                 ->get()->getResult();
 
@@ -121,17 +124,20 @@ class NotificationCell
                 ->get()->getResult();
         }
 
-        // Hitung total notifikasi untuk badge merah
-        $totalNotif = count($periodeDraft) + count($auditOverdue) + count($auditH3) + 
-                      count($auditBaru) + count($rtlPerluReview) + count($auditSelesai) + count($lhaSelesai);
+        // ==========================================
+        // 3. HITUNG TOTAL & SIAPKAN DATA FILTER
+        // (Sekarang aman, karena semua variabel sudah diinisialisasi di atas)
+        // ==========================================
+        $totalNotif = count($periodeDraft) + count($auditOverdue) + count($auditH3) + count($auditSelesai) + 
+                      count($auditBaru) + count($menungguPenilaian) + count($rtlPerluReview) + count($lhaSelesai);
 
-        // Siapkan data filter untuk JavaScript
         $filterData = [
             'periode' => count($periodeDraft),
             'overdue' => count($auditOverdue),
             'h3' => count($auditH3),
             'selesai' => count($auditSelesai) + count($lhaSelesai),
             'audit_baru' => count($auditBaru),
+            'menunggu_penilaian' => count($menungguPenilaian),
             'rtl' => count($rtlPerluReview),
         ];
 
@@ -142,6 +148,7 @@ class NotificationCell
             'auditOverdue'     => $auditOverdue,
             'auditH3'          => $auditH3,
             'auditBaru'        => $auditBaru,
+            'menungguPenilaian'=> $menungguPenilaian,
             'rtlPerluReview'   => $rtlPerluReview,
             'auditSelesai'     => $auditSelesai,
             'lhaSelesai'       => $lhaSelesai,
