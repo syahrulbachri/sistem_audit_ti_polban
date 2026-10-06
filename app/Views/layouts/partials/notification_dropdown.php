@@ -254,10 +254,12 @@
 </style>
 
 <div class="dropdown">
-    <button class="btn btn-light position-relative border-0" type="button" id="notificationDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+    <button class="btn btn-light position-relative border-0" type="button" id="notificationDropdown"
+        data-bs-toggle="dropdown" aria-expanded="false">
         <i class="bi bi-bell fs-5 text-secondary"></i>
         <?php if ($totalNotif > 0): ?>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                style="font-size: 0.65rem;">
                 <?= $totalNotif ?>
             </span>
         <?php endif; ?>
@@ -279,46 +281,72 @@
                     </div>
 
                     <?php if ($role === 'admin'): ?>
-                        <!-- PERBAIKAN: Hapus kondisi > 0 agar selalu muncul -->
-                        <div class="notif-filter-item" data-filter="periode" onclick="setFilter('periode', 'Periode', event)">
-                            <span>Periode Audit</span><span class="notif-filter-count"><?= $filterData['periode'] ?></span>
-                        </div>
-                        <div class="notif-filter-item" data-filter="overdue" onclick="setFilter('overdue', 'Overdue', event)">
-                            <span>Melebihi Deadline</span><span class="notif-filter-count"><?= $filterData['overdue'] ?></span>
-                        </div>
-                        <div class="notif-filter-item" data-filter="h3" onclick="setFilter('h3', 'H-3 Warning', event)">
-                            <span>Mendekati Deadline</span><span class="notif-filter-count"><?= $filterData['h3'] ?></span>
-                        </div>
-                        <div class="notif-filter-item" data-filter="selesai" onclick="setFilter('selesai', 'Audit Selesai', event)">
-                            <span>Audit Baru Selesai</span><span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
-                        </div>
 
-                    <?php elseif ($role === 'auditor'): ?>
-                        <!-- PERBAIKAN: Hapus kondisi > 0 agar selalu muncul -->
-                        <div class="notif-filter-item" data-filter="audit_baru" onclick="setFilter('audit_baru', 'Audit Baru', event)">
-                            <span>Audit Baru</span><span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
-                        </div>
-                        <div class="notif-filter-item" data-filter="menunggu_penilaian" onclick="setFilter('menunggu_penilaian', 'Menunggu Penilaian', event)">
-                            <span>Menunggu Penilaian</span><span class="notif-filter-count"><?= $filterData['menunggu_penilaian'] ?></span>
-                        </div>
-                        <div class="notif-filter-item" data-filter="rtl" onclick="setFilter('rtl', 'RTL Perlu Review', event)">
-                            <span>RTL Perlu Review</span><span class="notif-filter-count"><?= $filterData['rtl'] ?></span>
-                        </div>
+    <div class="notif-filter-item" data-filter="periode"
+        onclick="setFilter('periode', 'Periode', event)">
+        <span>Periode Audit</span>
+        <span class="notif-filter-count"><?= $filterData['periode'] ?></span>
+    </div>
 
-                    <?php elseif ($role === 'auditee'): ?>
-                        <?php if ($filterData['audit_baru'] > 0): ?>
-                            <div class="notif-filter-item" data-filter="audit_baru" onclick="setFilter('audit_baru', 'Tugas Baru', event)">
-                                <span>Tugas Audit Baru</span><span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
-                            </div>
-                        <?php endif; ?>
+    <div class="notif-filter-item" data-filter="overdue"
+        onclick="setFilter('overdue', 'Overdue', event)">
+        <span>Melebihi Deadline</span>
+        <span class="notif-filter-count"><?= $filterData['overdue'] ?></span>
+    </div>
 
-                    <?php elseif ($role === 'pimpinan'): ?>
-                        <?php if ($filterData['selesai'] > 0): ?>
-                            <div class="notif-filter-item" data-filter="selesai" onclick="setFilter('selesai', 'LHA Baru', event)">
-                                <span>Laporan Hasil Audit</span><span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
-                            </div>
-                        <?php endif; ?>
-                    <?php endif; ?>
+    <div class="notif-filter-item" data-filter="h3"
+        onclick="setFilter('h3', 'H-3 Warning', event)">
+        <span>Mendekati Deadline</span>
+        <span class="notif-filter-count"><?= $filterData['h3'] ?></span>
+    </div>
+
+    <div class="notif-filter-item" data-filter="selesai"
+        onclick="setFilter('selesai', 'Audit Selesai', event)">
+        <span>Audit Baru Selesai</span>
+        <span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
+    </div>
+
+<?php elseif ($role === 'auditor'): ?>
+
+    <div class="notif-filter-item" data-filter="audit_baru"
+        onclick="setFilter('audit_baru', 'Audit Baru', event)">
+        <span>Audit Baru</span>
+        <span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
+    </div>
+
+    <div class="notif-filter-item" data-filter="menunggu_penilaian"
+        onclick="setFilter('menunggu_penilaian', 'Menunggu Penilaian', event)">
+        <span>Menunggu Penilaian</span>
+        <span class="notif-filter-count"><?= $filterData['menunggu_penilaian'] ?></span>
+    </div>
+
+    <div class="notif-filter-item" data-filter="rtl"
+        onclick="setFilter('rtl', 'RTL Perlu Review', event)">
+        <span>RTL Perlu Review</span>
+        <span class="notif-filter-count"><?= $filterData['rtl'] ?></span>
+    </div>
+
+<?php elseif ($role === 'auditee'): ?>
+
+    <?php if ($filterData['audit_baru'] > 0): ?>
+        <div class="notif-filter-item" data-filter="audit_baru"
+            onclick="setFilter('audit_baru', 'Tugas Baru', event)">
+            <span>Tugas Audit Baru</span>
+            <span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
+        </div>
+    <?php endif; ?>
+
+<?php elseif ($role === 'pimpinan'): ?>
+
+    <?php if ($filterData['selesai'] > 0): ?>
+        <div class="notif-filter-item" data-filter="selesai"
+            onclick="setFilter('selesai', 'LHA Baru', event)">
+            <span>Laporan Hasil Audit</span>
+            <span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
+        </div>
+    <?php endif; ?>
+
+<?php endif; ?>
                 </div>
             </div>
         </li>
@@ -346,12 +374,16 @@
                     <?php foreach ($periodeDraft as $p): ?>
                         <li class="notif-item" data-category="periode">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i class="bi bi-calendar-check"></i></div>
+                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i
+                                        class="bi bi-calendar-check"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($p->nama_periode) ?></div>
-                                    <div class="notif-subtitle"><i class="bi bi-clock me-1"></i>Mulai: <?= date('d M Y', strtotime($p->tanggal_mulai)) ?></div>
+                                    <div class="notif-subtitle"><i class="bi bi-clock me-1"></i>Mulai:
+                                        <?= date('d M Y', strtotime($p->tanggal_mulai)) ?>
+                                    </div>
                                     <div class="notif-actions">
-                                        <button class="notif-btn" onclick="konfirmasiAktifkan(<?= $p->id ?>, '<?= esc($p->nama_periode) ?>')">
+                                        <button class="notif-btn"
+                                            onclick="konfirmasiAktifkan(<?= $p->id ?>, '<?= esc($p->nama_periode) ?>')">
                                             <i class="bi bi-power me-1"></i>Aktifkan
                                         </button>
                                     </div>
@@ -371,16 +403,22 @@
                     <?php foreach ($auditOverdue as $a):
                         $selisih = (strtotime($today) - strtotime($a->deadline)) / (60 * 60 * 24);
                         $hariText = $selisih == 1 ? '1 hari' : floor($selisih) . ' hari';
-                    ?>
+                        ?>
                         <li class="notif-item" data-category="overdue">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #f8d7da; color: #721c24;"><i class="bi bi-exclamation-triangle"></i></div>
+                                <div class="notif-icon" style="background: #f8d7da; color: #721c24;"><i
+                                        class="bi bi-exclamation-triangle"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle"><i class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Auditee') ?> • Melebihi <?= $hariText ?></div>
+                                    <div class="notif-subtitle"><i
+                                            class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Auditee') ?> • Melebihi
+                                        <?= $hariText ?>
+                                    </div>
                                     <div class="notif-actions">
-                                        <a href="/admin/planning/detail/<?= $a->id ?>" class="notif-btn"><i class="bi bi-eye me-1"></i>Detail</a>
-                                        <button class="notif-btn notif-btn-danger" onclick="perpanjangDeadline(<?= $a->id ?>, '<?= esc($a->title) ?>', '<?= $a->deadline ?>')">
+                                        <a href="/admin/planning/detail/<?= $a->id ?>" class="notif-btn"><i
+                                                class="bi bi-eye me-1"></i>Detail</a>
+                                        <button class="notif-btn notif-btn-danger"
+                                            onclick="perpanjangDeadline(<?= $a->id ?>, '<?= esc($a->title) ?>', '<?= $a->deadline ?>')">
                                             <i class="bi bi-clock-history me-1"></i>Perpanjang
                                         </button>
                                     </div>
@@ -400,16 +438,22 @@
                     <?php foreach ($auditH3 as $a):
                         $selisih = (strtotime($a->deadline) - strtotime($today)) / (60 * 60 * 24);
                         $hariText = $selisih == 1 ? '1 hari lagi' : ceil($selisih) . ' hari lagi';
-                    ?>
+                        ?>
                         <li class="notif-item" data-category="h3">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i class="bi bi-hourglass-split"></i></div>
+                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i
+                                        class="bi bi-hourglass-split"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle"><i class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Auditee') ?> • Deadline <?= $hariText ?></div>
+                                    <div class="notif-subtitle"><i
+                                            class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Auditee') ?> • Deadline
+                                        <?= $hariText ?>
+                                    </div>
                                     <div class="notif-actions">
-                                        <a href="/admin/planning/detail/<?= $a->id ?>" class="notif-btn"><i class="bi bi-eye me-1"></i>Detail</a>
-                                        <button class="notif-btn notif-btn-danger" onclick="perpanjangDeadline(<?= $a->id ?>, '<?= esc($a->title) ?>', '<?= $a->deadline ?>')">
+                                        <a href="/admin/planning/detail/<?= $a->id ?>" class="notif-btn"><i
+                                                class="bi bi-eye me-1"></i>Detail</a>
+                                        <button class="notif-btn notif-btn-danger"
+                                            onclick="perpanjangDeadline(<?= $a->id ?>, '<?= esc($a->title) ?>', '<?= $a->deadline ?>')">
                                             <i class="bi bi-clock-history me-1"></i>Perpanjang
                                         </button>
                                     </div>
@@ -429,12 +473,16 @@
                     <?php foreach ($auditSelesai as $a): ?>
                         <li class="notif-item" data-category="selesai">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i class="bi bi-file-earmark-check"></i></div>
+                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i
+                                        class="bi bi-file-earmark-check"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai: <?= date('d M Y', strtotime($a->updated_at)) ?></div>
+                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai:
+                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
+                                    </div>
                                     <div class="notif-actions">
-                                        <a href="/admin/completed-audits/detail/<?= $a->id ?>" class="notif-btn"><i class="bi bi-eye me-1"></i>Tinjau LHA</a>
+                                        <a href="/admin/completed-audits/detail/<?= $a->id ?>" class="notif-btn"><i
+                                                class="bi bi-eye me-1"></i>Tinjau LHA</a>
                                     </div>
                                 </div>
                             </div>
@@ -457,7 +505,8 @@
                     <?php foreach ($auditBaru as $a): ?>
                         <li class="notif-item" data-category="audit_baru">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d1ecf1; color: #0c5460;"><i class="bi bi-clipboard-check"></i></div>
+                                <div class="notif-icon" style="background: #d1ecf1; color: #0c5460;"><i
+                                        class="bi bi-clipboard-check"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($a->title) ?></div>
                                     <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?></div>
@@ -503,14 +552,42 @@
                     <?php foreach ($rtlPerluReview as $t): ?>
                         <li class="notif-item" data-category="rtl">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #e2e3e5; color: #41464b;"><i class="bi bi-arrow-repeat"></i></div>
+                                <div class="notif-icon" style="background: #e2e3e5; color: #41464b;">
+    <i class="bi bi-arrow-repeat"></i>
+</div>
+
+<div class="notif-content">
+    <div class="notif-title"><?= esc($t->audit_title) ?></div>
+
+    <div class="notif-subtitle">
+        Klausul: <?= esc($t->clause_code) ?>
+    </div>
+
+    <div class="notif-actions">
+        <a href="/auditor/temuan/<?= $t->id ?>" class="notif-btn">
+            <i class="bi bi-search me-1"></i>Verifikasi
+        </a>
+    </div>
+</div>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+
+                <?php if (!empty($auditSelesai)): ?>
+                    <li class="notif-section-title" data-category="selesai">Audit Selesai</li>
+                    <?php foreach ($auditSelesai as $a): ?>
+                        <li class="notif-item" data-category="selesai">
+                            <div class="d-flex align-items-start gap-3">
+                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i class="bi bi-check-circle"></i>
+                                </div>
                                 <div class="notif-content">
-                                    <div class="notif-title"><?= esc($t->audit_title) ?></div>
-                                    <div class="notif-subtitle">Klausul: <?= esc($t->clause_code) ?></div>
+                                    <div class="notif-title"><?= esc($a->title) ?></div>
+                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai:
+                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
+                                    </div>
                                     <div class="notif-actions">
-                                        <a href="/auditor/temuan/<?= $t->id ?>" class="notif-btn">
-                                            <i class="bi bi-search me-1"></i>Verifikasi
-                                        </a>
+                                        <a href="/auditor/riwayat" class="notif-btn"><i class="bi bi-eye me-1"></i>Lihat Laporan</a>
                                     </div>
                                 </div>
                             </div>
@@ -534,9 +611,14 @@
                                 <div class="notif-icon" style="background: #d1ecf1; color: #0c5460;"><i class="bi bi-inbox"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Deadline: <?= date('d M Y', strtotime($a->deadline)) ?></div>
+                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Deadline:
+                                        <?= date('d M Y', strtotime($a->deadline)) ?>
+                                    </div>
                                     <div class="notif-actions">
-                                        <a href="/auditee/daftar-audit" class="notif-btn"><i class="bi bi-pencil me-1"></i>Kerjakan</a>
+                                        <!-- ✅ SESUDAH (langsung ke halaman isi kuesioner) -->
+                                        <a href="<?= base_url('auditee/fill/' . $a->id) ?>" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-pencil-square"></i> Kerjakan
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -552,10 +634,13 @@
                     <?php foreach ($lhaSelesai as $a): ?>
                         <li class="notif-item" data-category="selesai">
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i class="bi bi-file-earmark-check"></i></div>
+                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i
+                                        class="bi bi-file-earmark-check"></i></div>
                                 <div class="notif-content">
                                     <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai: <?= date('d M Y', strtotime($a->updated_at)) ?></div>
+                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai:
+                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
+                                    </div>
                                     <div class="notif-actions">
                                         <a href="/pimpinan/lha" class="notif-btn"><i class="bi bi-eye me-1"></i>Tinjau LHA</a>
                                     </div>
@@ -585,7 +670,7 @@
     });
 
     // Tutup filter menu ketika klik di luar
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
         if (!filterToggleBtn.contains(event.target) && !filterMenu.contains(event.target)) {
             filterMenu.classList.remove('show');
             filterToggleBtn.classList.remove('active');
@@ -594,7 +679,7 @@
     });
 
     // Mencegah popup notifikasi menutup saat diklik di area panel
-    document.getElementById('notifPanel').addEventListener('click', function(event) {
+    document.getElementById('notifPanel').addEventListener('click', function (event) {
         event.stopPropagation();
     });
 
