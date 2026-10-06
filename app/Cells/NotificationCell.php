@@ -23,7 +23,12 @@ class NotificationCell
         $auditSelesai = [];
         $lhaSelesai = [];
         // Khusus pimpinan (read-only, 7 hari terakhir)
-        $auditBaruPimpinan = [];
+        // Catatan: TIDAK ada notifikasi "audit baru dibuat/berjalan" di sini secara
+        // sengaja -- Daftar LHA pimpinan hanya menampilkan audit berstatus 'selesai',
+        // jadi audit yang belum selesai memang belum punya tempat untuk dilihat
+        // pimpinan. Begitu audit selesai, notifikasi "LHA Selesai" di bawah yang
+        // menangkapnya. Temuan/RTL tetap dinotifikasi karena Monitoring Temuan
+        // menampilkan semua status audit, jadi datanya memang sudah terlihat di sana.
         $temuanBaru = [];
         $rtlMenunggu = [];
         $temuanTerverifikasi = [];
@@ -124,17 +129,7 @@ class NotificationCell
                 ->limit(5)
                 ->get()->getResult();
 
-            // 2. Audit Baru Masuk (audit baru dibuat/berjalan, dalam 7 hari terakhir)
-            $auditBaruPimpinan = $db->table('audits a')
-                ->select('a.id, a.title, p.nama_periode, auditee.fullname as auditee_name, a.created_at')
-                ->join('periodes p', 'p.id = a.periode_id', 'left')
-                ->join('users auditee', 'auditee.id = a.auditee_id', 'left')
-                ->where('a.created_at >=', $h7Date)
-                ->orderBy('a.created_at', 'DESC')
-                ->limit(5)
-                ->get()->getResult();
-
-            // 3. Temuan Baru (temuan audit baru dicatat auditor, dalam 7 hari terakhir)
+            // 2. Temuan Baru (temuan audit baru dicatat auditor, dalam 7 hari terakhir)
             $temuanBaru = $db->table('temuans t')
                 ->select('t.id, t.tingkat_risiko, a.title as audit_title, auditee.fullname as auditee_name, t.created_at')
                 ->join('audits a', 'a.id = t.audit_id', 'left')
@@ -144,7 +139,7 @@ class NotificationCell
                 ->limit(5)
                 ->get()->getResult();
 
-            // 4. RTL Menunggu Persetujuan (auditee sudah mengajukan rencana, menunggu direview auditor)
+            // 3. RTL Menunggu Persetujuan (auditee sudah mengajukan rencana, menunggu direview auditor)
             $rtlMenunggu = $db->table('temuans t')
                 ->select('t.id, a.title as audit_title, auditee.fullname as auditee_name, t.updated_at')
                 ->join('audits a', 'a.id = t.audit_id', 'left')
@@ -156,7 +151,7 @@ class NotificationCell
                 ->limit(5)
                 ->get()->getResult();
 
-            // 5. RTL Terverifikasi/Closed (update status terbaru, dalam 7 hari terakhir)
+            // 4. RTL Terverifikasi/Closed (update status terbaru, dalam 7 hari terakhir)
             $temuanTerverifikasi = $db->table('temuans t')
                 ->select('t.id, a.title as audit_title, auditee.fullname as auditee_name, t.closed_at')
                 ->join('audits a', 'a.id = t.audit_id', 'left')
@@ -171,7 +166,7 @@ class NotificationCell
         // Hitung total notifikasi untuk badge merah
         $totalNotif = count($periodeDraft) + count($auditOverdue) + count($auditH3) +
             count($auditBaru) + count($rtlPerluReview) + count($auditSelesai) + count($lhaSelesai) +
-            count($auditBaruPimpinan) + count($temuanBaru) + count($rtlMenunggu) + count($temuanTerverifikasi);
+            count($temuanBaru) + count($rtlMenunggu) + count($temuanTerverifikasi);
 
         // Siapkan data filter untuk JavaScript
         $filterData = [
@@ -179,7 +174,7 @@ class NotificationCell
             'overdue' => count($auditOverdue),
             'h3' => count($auditH3),
             'selesai' => count($auditSelesai) + count($lhaSelesai),
-            'audit_baru' => count($auditBaru) + count($auditBaruPimpinan),
+            'audit_baru' => count($auditBaru),
             'rtl' => count($rtlPerluReview) + count($rtlMenunggu),
             'temuan_baru' => count($temuanBaru),
             'rtl_closed' => count($temuanTerverifikasi),
@@ -195,7 +190,6 @@ class NotificationCell
             'rtlPerluReview'   => $rtlPerluReview,
             'auditSelesai'     => $auditSelesai,
             'lhaSelesai'       => $lhaSelesai,
-            'auditBaruPimpinan'    => $auditBaruPimpinan,
             'temuanBaru'           => $temuanBaru,
             'rtlMenunggu'          => $rtlMenunggu,
             'temuanTerverifikasi'  => $temuanTerverifikasi,

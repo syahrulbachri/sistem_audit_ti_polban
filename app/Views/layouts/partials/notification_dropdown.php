@@ -321,11 +321,6 @@
                                 <span>Laporan Hasil Audit</span><span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
                             </div>
                         <?php endif; ?>
-                        <?php if ($filterData['audit_baru'] > 0): ?>
-                            <div class="notif-filter-item" data-filter="audit_baru" onclick="setFilter('audit_baru', 'Audit Baru', event)">
-                                <span>Audit Baru Masuk</span><span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
-                            </div>
-                        <?php endif; ?>
                         <?php if ($filterData['temuan_baru'] > 0): ?>
                             <div class="notif-filter-item" data-filter="temuan_baru" onclick="setFilter('temuan_baru', 'Temuan Baru', event)">
                                 <span>Temuan Baru</span><span class="notif-filter-count"><?= $filterData['temuan_baru'] ?></span>
@@ -529,24 +524,6 @@
 
             <!-- === SECTION KHUSUS PIMPINAN (read-only: tidak ada aksi yang mengubah data) === -->
             <?php if ($role === 'pimpinan'): ?>
-                <?php if (!empty($auditBaruPimpinan)): ?>
-                    <li class="notif-section-title" data-category="audit_baru">Audit Baru Masuk</li>
-                    <?php foreach ($auditBaruPimpinan as $a): ?>
-                        <li class="notif-item" data-category="audit_baru">
-                            <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d1ecf1; color: #0c5460;"><i class="bi bi-clipboard-plus"></i></div>
-                                <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle"><i class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Unit') ?> • Periode: <?= esc($a->nama_periode) ?></div>
-                                    <div class="notif-actions">
-                                        <a href="/pimpinan/lha/detail/<?= $a->id ?>" class="notif-btn"><i class="bi bi-eye me-1"></i>Lihat Detail</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-
                 <?php if (!empty($temuanBaru)): ?>
                     <li class="notif-section-title" data-category="temuan_baru">Temuan Baru</li>
                     <?php foreach ($temuanBaru as $t):
