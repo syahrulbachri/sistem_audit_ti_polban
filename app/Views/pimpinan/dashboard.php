@@ -335,13 +335,9 @@
                         <span class="maturity-target-label">Target Institusi (4.0)</span>
                     </div>
                     <?php
-                    $domains = [
-                        ['label' => 'EDM (Tata Kelola)', 'value' => 3.8],
-                        ['label' => 'APO (Perencanaan)', 'value' => 3.2],
-                        ['label' => 'BAI (Pengembangan)', 'value' => 3.0],
-                        ['label' => 'DSS (Operasional)', 'value' => 3.5],
-                        ['label' => 'MEA (Pengawasan)', 'value' => 3.6],
-                    ];
+                    // $domains sekarang dikirim dari DashboardPimpinanController,
+                    // dihitung dari audit_question_assignments.score (COBIT 2019)
+                    // pada audit yang sudah selesai -- bukan lagi angka tetap.
                     foreach ($domains as $d):
                         $percent = ($d['value'] / 5) * 100;
                     ?>

@@ -1,5 +1,7 @@
 <?php
-// Ambil foto profil langsung dari database
+// Ambil foto profil langsung dari database (bukan dari session) supaya
+// selalu akurat tanpa perlu mengubah Auth.php dan tanpa risiko basi
+// kalau session belum/tidak tersinkron.
 $topbarPhoto = null;
 if (session()->get('logged_in')) {
     $topbarUser = \Config\Database::connect()
@@ -19,8 +21,8 @@ if (session()->get('logged_in')) {
 
     <!-- Bagian Kanan: Lonceng Notifikasi + Profil User (Dalam Satu Flex Container) -->
     <div class="d-flex align-items-center gap-3">
-        
-        <!-- ✅ LONCENG NOTIFIKASI (Dipindahkan ke dalam container kanan) -->
+
+        <!-- Lonceng Notifikasi -->
         <?= view_cell('App\Cells\NotificationCell::render') ?>
 
         <!-- Profil User -->
@@ -37,7 +39,7 @@ if (session()->get('logged_in')) {
             <div class="user-avatar dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                 <?php if (!empty($topbarPhoto)): ?>
                     <img src="<?= base_url('uploads/profile_photos/' . esc($topbarPhoto, 'url')) ?>"
-                        alt="Foto Profil">
+                        alt="Foto Profil" width="40" height="40" class="topbar-avatar-img">
                 <?php else: ?>
                     <?= strtoupper(substr(session()->get('fullname') ?? 'U', 0, 1)) ?>
                 <?php endif; ?>
@@ -57,13 +59,25 @@ if (session()->get('logged_in')) {
 <style>
     .user-avatar {
         overflow: hidden;
+        position: relative;
     }
 
-    .user-avatar img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
+    .user-avatar img,
+    .topbar-avatar-img {
+        display: block !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        object-fit: cover !important;
+        object-position: center !important;
+        border-radius: 50% !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: 0 !important;
     }
 
     .page-header-section h4 {

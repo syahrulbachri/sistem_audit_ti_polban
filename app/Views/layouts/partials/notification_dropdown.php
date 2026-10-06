@@ -39,7 +39,7 @@
         z-index: 20;
     }
 
-    /* Filter Menu - Menggunakan Toggle Manual (Bukan Bootstrap Dropdown) */
+    /* Filter Menu */
     .notif-filter-container {
         margin-top: 8px;
         position: relative;
@@ -73,7 +73,6 @@
 
     .notif-filter-menu {
         display: none;
-        /* Hidden by default */
         position: absolute;
         top: 100%;
         left: 0;
@@ -90,7 +89,6 @@
 
     .notif-filter-menu.show {
         display: block;
-        /* Show when active */
     }
 
     .notif-filter-item {
@@ -254,592 +252,1721 @@
 </style>
 
 <div class="dropdown">
-    <button class="btn btn-light position-relative border-0" type="button" id="notificationDropdown"
-        data-bs-toggle="dropdown" aria-expanded="false">
+
+    <button class="btn btn-light position-relative border-0"
+        type="button"
+        id="notificationDropdown"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">
+
         <i class="bi bi-bell fs-5 text-secondary"></i>
+
         <?php if ($totalNotif > 0): ?>
             <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
                 style="font-size: 0.65rem;">
                 <?= $totalNotif ?>
             </span>
         <?php endif; ?>
+
     </button>
 
-    <ul class="dropdown-menu dropdown-menu-end notif-panel" id="notifPanel" aria-labelledby="notificationDropdown">
+    <ul class="dropdown-menu dropdown-menu-end notif-panel"
+        id="notifPanel"
+        aria-labelledby="notificationDropdown">
+
         <li class="notif-header">
+
             <h6 class="fw-bold mb-2">Notifikasi</h6>
 
-            <!-- Filter Container - Menggunakan Toggle Manual -->
             <div class="notif-filter-container">
-                <button class="notif-filter-btn" type="button" id="filterToggleBtn">
-                    <span id="filterLabel"><i class="bi bi-funnel me-2"></i>Filter: Semua</span>
-                    <i class="bi bi-chevron-down small" id="filterChevron"></i>
+
+                <button class="notif-filter-btn"
+                    type="button"
+                    id="filterToggleBtn">
+
+                    <span id="filterLabel">
+                        <i class="bi bi-funnel me-2"></i>Filter: Semua
+                    </span>
+
+                    <i class="bi bi-chevron-down small"
+                        id="filterChevron"></i>
+
                 </button>
-                <div class="notif-filter-menu" id="filterMenu">
-                    <div class="notif-filter-item active" data-filter="all" onclick="setFilter('all', 'Semua', event)">
-                        <span>Semua Notifikasi</span><span class="notif-filter-count"><?= $totalNotif ?></span>
+
+                <div class="notif-filter-menu"
+                    id="filterMenu">
+
+                    <div class="notif-filter-item active"
+                        data-filter="all"
+                        onclick="setFilter('all', 'Semua', event)">
+
+                        <span>Semua Notifikasi</span>
+                        <span class="notif-filter-count">
+                            <?= $totalNotif ?>
+                        </span>
+
                     </div>
 
                     <?php if ($role === 'admin'): ?>
 
-    <div class="notif-filter-item" data-filter="periode"
-        onclick="setFilter('periode', 'Periode', event)">
-        <span>Periode Audit</span>
-        <span class="notif-filter-count"><?= $filterData['periode'] ?></span>
-    </div>
+                        <?php if ($filterData['periode'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="periode"
+                                onclick="setFilter('periode', 'Periode', event)">
 
-    <div class="notif-filter-item" data-filter="overdue"
-        onclick="setFilter('overdue', 'Overdue', event)">
-        <span>Melebihi Deadline</span>
-        <span class="notif-filter-count"><?= $filterData['overdue'] ?></span>
-    </div>
+                                <span>Periode Audit</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['periode'] ?>
+                                </span>
 
-    <div class="notif-filter-item" data-filter="h3"
-        onclick="setFilter('h3', 'H-3 Warning', event)">
-        <span>Mendekati Deadline</span>
-        <span class="notif-filter-count"><?= $filterData['h3'] ?></span>
-    </div>
+                            </div>
+                        <?php endif; ?>
 
-    <div class="notif-filter-item" data-filter="selesai"
-        onclick="setFilter('selesai', 'Audit Selesai', event)">
-        <span>Audit Baru Selesai</span>
-        <span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
-    </div>
+                        <?php if ($filterData['overdue'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="overdue"
+                                onclick="setFilter('overdue', 'Overdue', event)">
 
-<?php elseif ($role === 'auditor'): ?>
+                                <span>Melebihi Deadline</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['overdue'] ?>
+                                </span>
 
-    <div class="notif-filter-item" data-filter="audit_baru"
-        onclick="setFilter('audit_baru', 'Audit Baru', event)">
-        <span>Audit Baru</span>
-        <span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
-    </div>
+                            </div>
+                        <?php endif; ?>
 
-    <div class="notif-filter-item" data-filter="menunggu_penilaian"
-        onclick="setFilter('menunggu_penilaian', 'Menunggu Penilaian', event)">
-        <span>Menunggu Penilaian</span>
-        <span class="notif-filter-count"><?= $filterData['menunggu_penilaian'] ?></span>
-    </div>
+                        <?php if ($filterData['h3'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="h3"
+                                onclick="setFilter('h3', 'H-3 Warning', event)">
 
-    <div class="notif-filter-item" data-filter="rtl"
-        onclick="setFilter('rtl', 'RTL Perlu Review', event)">
-        <span>RTL Perlu Review</span>
-        <span class="notif-filter-count"><?= $filterData['rtl'] ?></span>
-    </div>
+                                <span>Mendekati Deadline</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['h3'] ?>
+                                </span>
 
-<?php elseif ($role === 'auditee'): ?>
+                            </div>
+                        <?php endif; ?>
 
-    <?php if ($filterData['audit_baru'] > 0): ?>
-        <div class="notif-filter-item" data-filter="audit_baru"
-            onclick="setFilter('audit_baru', 'Tugas Baru', event)">
-            <span>Tugas Audit Baru</span>
-            <span class="notif-filter-count"><?= $filterData['audit_baru'] ?></span>
-        </div>
-    <?php endif; ?>
+                        <?php if ($filterData['selesai'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="selesai"
+                                onclick="setFilter('selesai', 'Audit Selesai', event)">
 
-<?php elseif ($role === 'pimpinan'): ?>
+                                <span>Audit Baru Selesai</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['selesai'] ?>
+                                </span>
 
-    <?php if ($filterData['selesai'] > 0): ?>
-        <div class="notif-filter-item" data-filter="selesai"
-            onclick="setFilter('selesai', 'LHA Baru', event)">
-            <span>Laporan Hasil Audit</span>
-            <span class="notif-filter-count"><?= $filterData['selesai'] ?></span>
-        </div>
-    <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
 
-<?php endif; ?>
+                    <?php elseif ($role === 'auditor'): ?>
+
+                        <?php if ($filterData['audit_baru'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="audit_baru"
+                                onclick="setFilter('audit_baru', 'Audit Baru', event)">
+
+                                <span>Audit Baru</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['audit_baru'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($filterData['menunggu_penilaian'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="menunggu_penilaian"
+                                onclick="setFilter('menunggu_penilaian', 'Menunggu Penilaian', event)">
+
+                                <span>Menunggu Penilaian</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['menunggu_penilaian'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($filterData['rtl'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="rtl"
+                                onclick="setFilter('rtl', 'RTL Perlu Review', event)">
+
+                                <span>RTL Perlu Review</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['rtl'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($filterData['selesai'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="selesai"
+                                onclick="setFilter('selesai', 'Audit Selesai', event)">
+
+                                <span>Audit Selesai</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['selesai'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                    <?php elseif ($role === 'auditee'): ?>
+
+                        <?php if ($filterData['audit_baru'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="audit_baru"
+                                onclick="setFilter('audit_baru', 'Tugas Baru', event)">
+
+                                <span>Tugas Audit Baru</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['audit_baru'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                    <?php elseif ($role === 'pimpinan'): ?>
+
+                        <?php if ($filterData['selesai'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="selesai"
+                                onclick="setFilter('selesai', 'LHA Baru', event)">
+
+                                <span>Laporan Hasil Audit</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['selesai'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($filterData['temuan_baru'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="temuan_baru"
+                                onclick="setFilter('temuan_baru', 'Temuan Baru', event)">
+
+                                <span>Temuan Baru</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['temuan_baru'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($filterData['rtl'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="rtl"
+                                onclick="setFilter('rtl', 'RTL Menunggu', event)">
+
+                                <span>RTL Menunggu Persetujuan</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['rtl'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($filterData['rtl_closed'] > 0): ?>
+                            <div class="notif-filter-item"
+                                data-filter="rtl_closed"
+                                onclick="setFilter('rtl_closed', 'RTL Terverifikasi', event)">
+
+                                <span>RTL Terverifikasi</span>
+                                <span class="notif-filter-count">
+                                    <?= $filterData['rtl_closed'] ?>
+                                </span>
+
+                            </div>
+                        <?php endif; ?>
+
+                    <?php endif; ?>
+
                 </div>
             </div>
         </li>
 
-        <li class="filter-empty-msg" id="filterEmptyMsg">
-            <i class="bi bi-search d-block mb-2" style="font-size: 2rem; color: #ccc;"></i>
+        <li class="filter-empty-msg"
+            id="filterEmptyMsg">
+
+            <i class="bi bi-search d-block mb-2"
+                style="font-size: 2rem; color: #ccc;"></i>
+
             <small>Tidak ada notifikasi untuk filter ini</small>
+
         </li>
 
         <?php if ($totalNotif == 0): ?>
+
             <li>
                 <div class="notif-empty">
+
                     <i class="bi bi-bell-slash d-block"></i>
+
                     <small>Tidak ada notifikasi baru</small>
+
                 </div>
             </li>
+
         <?php else: ?>
 
-            <!-- === SECTION KHUSUS ADMIN === -->
+            <!-- ========================================== -->
+            <!-- SECTION KHUSUS ADMIN -->
+            <!-- ========================================== -->
+
             <?php if ($role === 'admin'): ?>
 
                 <!-- 1. PERIODE AUDIT -->
-                <li class="notif-section-title" data-category="periode">Periode Audit</li>
+
+                <li class="notif-section-title"
+                    data-category="periode">
+
+                    Periode Audit
+
+                </li>
+
                 <?php if (!empty($periodeDraft)): ?>
+
                     <?php foreach ($periodeDraft as $p): ?>
-                        <li class="notif-item" data-category="periode">
+
+                        <li class="notif-item"
+                            data-category="periode">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i
-                                        class="bi bi-calendar-check"></i></div>
+
+                                <div class="notif-icon"
+                                    style="background: #fff3cd; color: #856404;">
+
+                                    <i class="bi bi-calendar-check"></i>
+
+                                </div>
+
                                 <div class="notif-content">
-                                    <div class="notif-title"><?= esc($p->nama_periode) ?></div>
-                                    <div class="notif-subtitle"><i class="bi bi-clock me-1"></i>Mulai:
-                                        <?= date('d M Y', strtotime($p->tanggal_mulai)) ?>
+
+                                    <div class="notif-title">
+                                        <?= esc($p->nama_periode) ?>
                                     </div>
+
+                                    <div class="notif-subtitle">
+
+                                        <i class="bi bi-clock me-1"></i>
+
+                                        Mulai:
+                                        <?= date('d M Y', strtotime($p->tanggal_mulai)) ?>
+
+                                    </div>
+
                                     <div class="notif-actions">
+
                                         <button class="notif-btn"
                                             onclick="konfirmasiAktifkan(<?= $p->id ?>, '<?= esc($p->nama_periode) ?>')">
-                                            <i class="bi bi-power me-1"></i>Aktifkan
+
+                                            <i class="bi bi-power me-1"></i>
+                                            Aktifkan
+
                                         </button>
+
                                     </div>
+
                                 </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php else: ?>
-                    <li class="notif-item" data-category="periode">
-                        <div class="notif-empty-state">Tidak ada periode yang perlu diaktifkan.</div>
+
+                    <li class="notif-item"
+                        data-category="periode">
+
+                        <div class="notif-empty-state">
+                            Tidak ada periode yang perlu diaktifkan.
+                        </div>
+
                     </li>
+
                 <?php endif; ?>
+
 
                 <!-- 2. AUDIT MELEBIHI DEADLINE -->
-                <li class="notif-section-title" data-category="overdue">Audit Melebihi Deadline</li>
+
+                <li class="notif-section-title"
+                    data-category="overdue">
+
+                    Audit Melebihi Deadline
+
+                </li>
+
                 <?php if (!empty($auditOverdue)): ?>
+
                     <?php foreach ($auditOverdue as $a):
-                        $selisih = (strtotime($today) - strtotime($a->deadline)) / (60 * 60 * 24);
-                        $hariText = $selisih == 1 ? '1 hari' : floor($selisih) . ' hari';
-                        ?>
-                        <li class="notif-item" data-category="overdue">
+
+                        $selisih =
+                            (strtotime($today) - strtotime($a->deadline))
+                            / (60 * 60 * 24);
+
+                        $hariText =
+                            $selisih == 1
+                                ? '1 hari'
+                                : floor($selisih) . ' hari';
+
+                    ?>
+
+                        <li class="notif-item"
+                            data-category="overdue">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #f8d7da; color: #721c24;"><i
-                                        class="bi bi-exclamation-triangle"></i></div>
+
+                                <div class="notif-icon"
+                                    style="background: #f8d7da; color: #721c24;">
+
+                                    <i class="bi bi-exclamation-triangle"></i>
+
+                                </div>
+
                                 <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle"><i
-                                            class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Auditee') ?> • Melebihi
-                                        <?= $hariText ?>
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
                                     </div>
+
+                                    <div class="notif-subtitle">
+
+                                        <i class="bi bi-building me-1"></i>
+
+                                        <?= esc($a->auditee_name ?? 'Auditee') ?>
+
+                                        • Melebihi
+                                        <?= $hariText ?>
+
+                                    </div>
+
                                     <div class="notif-actions">
-                                        <a href="/admin/planning/detail/<?= $a->id ?>" class="notif-btn"><i
-                                                class="bi bi-eye me-1"></i>Detail</a>
+
+                                        <a href="/admin/planning/detail/<?= $a->id ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Detail
+
+                                        </a>
+
                                         <button class="notif-btn notif-btn-danger"
                                             onclick="perpanjangDeadline(<?= $a->id ?>, '<?= esc($a->title) ?>', '<?= $a->deadline ?>')">
-                                            <i class="bi bi-clock-history me-1"></i>Perpanjang
+
+                                            <i class="bi bi-clock-history me-1"></i>
+                                            Perpanjang
+
                                         </button>
+
                                     </div>
+
                                 </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php else: ?>
-                    <li class="notif-item" data-category="overdue">
-                        <div class="notif-empty-state">Tidak ada audit yang melebihi deadline.</div>
+
+                    <li class="notif-item"
+                        data-category="overdue">
+
+                        <div class="notif-empty-state">
+                            Tidak ada audit yang melebihi deadline.
+                        </div>
+
                     </li>
+
                 <?php endif; ?>
 
-                <!-- 3. AUDIT MENDEKATI DEADLINE (H-3) -->
-                <li class="notif-section-title" data-category="h3">Audit Mendekati Deadline (H-3)</li>
+
+                <!-- 3. AUDIT MENDEKATI DEADLINE -->
+
+                <li class="notif-section-title"
+                    data-category="h3">
+
+                    Audit Mendekati Deadline (H-3)
+
+                </li>
+
                 <?php if (!empty($auditH3)): ?>
+
                     <?php foreach ($auditH3 as $a):
-                        $selisih = (strtotime($a->deadline) - strtotime($today)) / (60 * 60 * 24);
-                        $hariText = $selisih == 1 ? '1 hari lagi' : ceil($selisih) . ' hari lagi';
-                        ?>
-                        <li class="notif-item" data-category="h3">
+
+                        $selisih =
+                            (strtotime($a->deadline) - strtotime($today))
+                            / (60 * 60 * 24);
+
+                        $hariText =
+                            $selisih == 1
+                                ? '1 hari lagi'
+                                : ceil($selisih) . ' hari lagi';
+
+                    ?>
+
+                        <li class="notif-item"
+                            data-category="h3">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i
-                                        class="bi bi-hourglass-split"></i></div>
+
+                                <div class="notif-icon"
+                                    style="background: #fff3cd; color: #856404;">
+
+                                    <i class="bi bi-hourglass-split"></i>
+
+                                </div>
+
                                 <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle"><i
-                                            class="bi bi-building me-1"></i><?= esc($a->auditee_name ?? 'Auditee') ?> • Deadline
-                                        <?= $hariText ?>
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
                                     </div>
+
+                                    <div class="notif-subtitle">
+
+                                        <i class="bi bi-building me-1"></i>
+
+                                        <?= esc($a->auditee_name ?? 'Auditee') ?>
+
+                                        • Deadline
+                                        <?= $hariText ?>
+
+                                    </div>
+
                                     <div class="notif-actions">
-                                        <a href="/admin/planning/detail/<?= $a->id ?>" class="notif-btn"><i
-                                                class="bi bi-eye me-1"></i>Detail</a>
+
+                                        <a href="/admin/planning/detail/<?= $a->id ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Detail
+
+                                        </a>
+
                                         <button class="notif-btn notif-btn-danger"
                                             onclick="perpanjangDeadline(<?= $a->id ?>, '<?= esc($a->title) ?>', '<?= $a->deadline ?>')">
-                                            <i class="bi bi-clock-history me-1"></i>Perpanjang
+
+                                            <i class="bi bi-clock-history me-1"></i>
+                                            Perpanjang
+
                                         </button>
+
                                     </div>
+
                                 </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php else: ?>
-                    <li class="notif-item" data-category="h3">
-                        <div class="notif-empty-state">Tidak ada audit yang mendekati deadline.</div>
+
+                    <li class="notif-item"
+                        data-category="h3">
+
+                        <div class="notif-empty-state">
+                            Tidak ada audit yang mendekati deadline.
+                        </div>
+
                     </li>
+
                 <?php endif; ?>
+
 
                 <!-- 4. AUDIT BARU SELESAI -->
-                <li class="notif-section-title" data-category="selesai">Audit Baru Selesai</li>
+
+                <li class="notif-section-title"
+                    data-category="selesai">
+
+                    Audit Baru Selesai
+
+                </li>
+
                 <?php if (!empty($auditSelesai)): ?>
+
                     <?php foreach ($auditSelesai as $a): ?>
-                        <li class="notif-item" data-category="selesai">
+
+                        <li class="notif-item"
+                            data-category="selesai">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i
-                                        class="bi bi-file-earmark-check"></i></div>
-                                <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai:
-                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
-                                    </div>
-                                    <div class="notif-actions">
-                                        <a href="/admin/completed-audits/detail/<?= $a->id ?>" class="notif-btn"><i
-                                                class="bi bi-eye me-1"></i>Tinjau LHA</a>
-                                    </div>
+
+                                <div class="notif-icon"
+                                    style="background: #d4edda; color: #155724;">
+
+                                    <i class="bi bi-file-earmark-check"></i>
+
                                 </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        Periode:
+                                        <?= esc($a->nama_periode) ?>
+
+                                        • Selesai:
+                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/admin/completed-audits/detail/<?= $a->id ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Tinjau LHA
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php else: ?>
-                    <li class="notif-item" data-category="selesai">
-                        <div class="notif-empty-state">Belum ada audit yang baru diselesaikan.</div>
+
+                    <li class="notif-item"
+                        data-category="selesai">
+
+                        <div class="notif-empty-state">
+                            Belum ada audit yang baru diselesaikan.
+                        </div>
+
                     </li>
+
                 <?php endif; ?>
 
             <?php endif; ?>
 
-            <!-- === SECTION KHUSUS AUDITOR === -->
+
+            <!-- ========================================== -->
+            <!-- SECTION KHUSUS AUDITOR -->
+            <!-- ========================================== -->
+
             <?php if ($role === 'auditor'): ?>
 
-                <!-- 1. AUDIT BARU DITUGASKAN -->
-                <li class="notif-section-title" data-category="audit_baru">Audit Baru Ditugaskan</li>
+                <!-- 1. AUDIT BARU -->
+
+                <li class="notif-section-title"
+                    data-category="audit_baru">
+
+                    Audit Baru Ditugaskan
+
+                </li>
+
                 <?php if (!empty($auditBaru)): ?>
+
                     <?php foreach ($auditBaru as $a): ?>
-                        <li class="notif-item" data-category="audit_baru">
+
+                        <li class="notif-item"
+                            data-category="audit_baru">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d1ecf1; color: #0c5460;"><i
-                                        class="bi bi-clipboard-check"></i></div>
-                                <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?></div>
-                                    <div class="notif-actions">
-                                        <a href="/auditor/list" class="notif-btn"><i class="bi bi-eye me-1"></i>Lihat Daftar</a>
-                                    </div>
+
+                                <div class="notif-icon"
+                                    style="background: #d1ecf1; color: #0c5460;">
+
+                                    <i class="bi bi-clipboard-check"></i>
+
                                 </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+                                        Periode:
+                                        <?= esc($a->nama_periode) ?>
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/auditor/list"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Lihat Daftar
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php else: ?>
-                    <li class="notif-item" data-category="audit_baru">
-                        <div class="notif-empty-state">Belum ada audit baru yang ditugaskan.</div>
+
+                    <li class="notif-item"
+                        data-category="audit_baru">
+
+                        <div class="notif-empty-state">
+                            Belum ada audit baru yang ditugaskan.
+                        </div>
+
                     </li>
+
                 <?php endif; ?>
+
 
                 <!-- 2. MENUNGGU PENILAIAN -->
-                <li class="notif-section-title" data-category="menunggu_penilaian">Menunggu Penilaian</li>
+
+                <li class="notif-section-title"
+                    data-category="menunggu_penilaian">
+
+                    Menunggu Penilaian
+
+                </li>
+
                 <?php if (!empty($menungguPenilaian)): ?>
+
                     <?php foreach ($menungguPenilaian as $a): ?>
-                        <li class="notif-item" data-category="menunggu_penilaian">
+
+                        <li class="notif-item"
+                            data-category="menunggu_penilaian">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #fff3cd; color: #856404;"><i class="bi bi-pencil-square"></i></div>
-                                <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Auditee: <?= esc($a->auditee_name) ?> telah menjawab.</div>
-                                    <div class="notif-actions">
-                                        <a href="/audit/detail/<?= $a->id ?>" class="notif-btn"><i class="bi bi-star me-1"></i>Nilai Sekarang</a>
-                                    </div>
+
+                                <div class="notif-icon"
+                                    style="background: #fff3cd; color: #856404;">
+
+                                    <i class="bi bi-pencil-square"></i>
+
                                 </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        Auditee:
+                                        <?= esc($a->auditee_name) ?>
+                                        telah menjawab.
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/audit/detail/<?= $a->id ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-star me-1"></i>
+                                            Nilai Sekarang
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php else: ?>
-                    <li class="notif-item" data-category="menunggu_penilaian">
-                        <div class="notif-empty-state">Tidak ada audit yang menunggu penilaian.</div>
+
+                    <li class="notif-item"
+                        data-category="menunggu_penilaian">
+
+                        <div class="notif-empty-state">
+                            Tidak ada audit yang menunggu penilaian.
+                        </div>
+
                     </li>
+
                 <?php endif; ?>
+
 
                 <!-- 3. RTL PERLU DIVERIFIKASI -->
-                <li class="notif-section-title" data-category="rtl">RTL Perlu Diverifikasi</li>
+
+                <li class="notif-section-title"
+                    data-category="rtl">
+
+                    RTL Perlu Diverifikasi
+
+                </li>
+
                 <?php if (!empty($rtlPerluReview)): ?>
+
                     <?php foreach ($rtlPerluReview as $t): ?>
-                        <li class="notif-item" data-category="rtl">
+
+                        <li class="notif-item"
+                            data-category="rtl">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #e2e3e5; color: #41464b;">
-    <i class="bi bi-arrow-repeat"></i>
-</div>
 
-<div class="notif-content">
-    <div class="notif-title"><?= esc($t->audit_title) ?></div>
+                                <div class="notif-icon"
+                                    style="background: #e2e3e5; color: #41464b;">
 
-    <div class="notif-subtitle">
-        Klausul: <?= esc($t->clause_code) ?>
-    </div>
+                                    <i class="bi bi-arrow-repeat"></i>
 
-    <div class="notif-actions">
-        <a href="/auditor/temuan/<?= $t->id ?>" class="notif-btn">
-            <i class="bi bi-search me-1"></i>Verifikasi
-        </a>
-    </div>
-</div>
+                                </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($t->audit_title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+                                        Klausul:
+                                        <?= esc($t->clause_code) ?>
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/auditor/temuan/<?= $t->id ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-search me-1"></i>
+                                            Verifikasi
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
+                <?php else: ?>
+
+                    <li class="notif-item"
+                        data-category="rtl">
+
+                        <div class="notif-empty-state">
+                            Tidak ada RTL yang perlu diverifikasi.
+                        </div>
+
+                    </li>
+
                 <?php endif; ?>
+
+
+                <!-- 4. AUDIT SELESAI -->
+
+                <li class="notif-section-title"
+                    data-category="selesai">
+
+                    Audit Selesai
+
+                </li>
 
                 <?php if (!empty($auditSelesai)): ?>
-                    <li class="notif-section-title" data-category="selesai">Audit Selesai</li>
+
                     <?php foreach ($auditSelesai as $a): ?>
-                        <li class="notif-item" data-category="selesai">
+
+                        <li class="notif-item"
+                            data-category="selesai">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i class="bi bi-check-circle"></i>
+
+                                <div class="notif-icon"
+                                    style="background: #d4edda; color: #155724;">
+
+                                    <i class="bi bi-check-circle"></i>
+
                                 </div>
+
                                 <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai:
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        Periode:
+                                        <?= esc($a->nama_periode) ?>
+
+                                        • Selesai:
                                         <?= date('d M Y', strtotime($a->updated_at)) ?>
-                                    </div>
-                                    <div class="notif-actions">
-                                        <a href="/auditor/riwayat" class="notif-btn"><i class="bi bi-eye me-1"></i>Lihat Laporan</a>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <li class="notif-item" data-category="rtl">
-                        <div class="notif-empty-state">Tidak ada RTL yang perlu diverifikasi.</div>
-                    </li>
-                <?php endif; ?>
 
-            <?php endif; ?>
-
-            <!-- === SECTION KHUSUS AUDITEE === -->
-            <?php if ($role === 'auditee'): ?>
-                <?php if (!empty($auditBaru)): ?>
-                    <li class="notif-section-title" data-category="audit_baru">Tugas Audit Baru</li>
-                    <?php foreach ($auditBaru as $a): ?>
-                        <li class="notif-item" data-category="audit_baru">
-                            <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d1ecf1; color: #0c5460;"><i class="bi bi-inbox"></i></div>
-                                <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Deadline:
-                                        <?= date('d M Y', strtotime($a->deadline)) ?>
                                     </div>
+
                                     <div class="notif-actions">
-                                        <!-- ✅ SESUDAH (langsung ke halaman isi kuesioner) -->
-                                        <a href="<?= base_url('auditee/fill/' . $a->id) ?>" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-pencil-square"></i> Kerjakan
+
+                                        <a href="/auditor/riwayat"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Lihat Laporan
+
                                         </a>
+
                                     </div>
+
                                 </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
+                <?php else: ?>
+
+                    <li class="notif-item"
+                        data-category="selesai">
+
+                        <div class="notif-empty-state">
+                            Tidak ada audit yang selesai dalam 24 jam terakhir.
+                        </div>
+
+                    </li>
+
                 <?php endif; ?>
+
             <?php endif; ?>
 
-            <!-- === SECTION KHUSUS PIMPINAN === -->
-            <?php if ($role === 'pimpinan'): ?>
-                <?php if (!empty($lhaSelesai)): ?>
-                    <li class="notif-section-title" data-category="selesai">Laporan Hasil Audit (LHA) Baru</li>
-                    <?php foreach ($lhaSelesai as $a): ?>
-                        <li class="notif-item" data-category="selesai">
+
+            <!-- ========================================== -->
+            <!-- SECTION KHUSUS AUDITEE -->
+            <!-- ========================================== -->
+
+            <?php if ($role === 'auditee'): ?>
+
+                <?php if (!empty($auditBaru)): ?>
+
+                    <li class="notif-section-title"
+                        data-category="audit_baru">
+
+                        Tugas Audit Baru
+
+                    </li>
+
+                    <?php foreach ($auditBaru as $a): ?>
+
+                        <li class="notif-item"
+                            data-category="audit_baru">
+
                             <div class="d-flex align-items-start gap-3">
-                                <div class="notif-icon" style="background: #d4edda; color: #155724;"><i
-                                        class="bi bi-file-earmark-check"></i></div>
-                                <div class="notif-content">
-                                    <div class="notif-title"><?= esc($a->title) ?></div>
-                                    <div class="notif-subtitle">Periode: <?= esc($a->nama_periode) ?> • Selesai:
-                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
-                                    </div>
-                                    <div class="notif-actions">
-                                        <a href="/pimpinan/lha" class="notif-btn"><i class="bi bi-eye me-1"></i>Tinjau LHA</a>
-                                    </div>
+
+                                <div class="notif-icon"
+                                    style="background: #d1ecf1; color: #0c5460;">
+
+                                    <i class="bi bi-inbox"></i>
+
                                 </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        Periode:
+                                        <?= esc($a->nama_periode) ?>
+
+                                        • Deadline:
+                                        <?= date('d M Y', strtotime($a->deadline)) ?>
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="<?= base_url('auditee/fill/' . $a->id) ?>"
+                                            class="btn btn-sm btn-outline-primary">
+
+                                            <i class="bi bi-pencil-square"></i>
+                                            Kerjakan
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
                             </div>
+
                         </li>
+
                     <?php endforeach; ?>
+
                 <?php endif; ?>
+
+            <?php endif; ?>
+
+
+            <!-- ========================================== -->
+            <!-- SECTION KHUSUS PIMPINAN -->
+            <!-- ========================================== -->
+
+            <?php if ($role === 'pimpinan'): ?>
+
+                <!-- TEMUAN BARU -->
+
+                <?php if (!empty($temuanBaru)): ?>
+
+                    <li class="notif-section-title"
+                        data-category="temuan_baru">
+
+                        Temuan Baru
+
+                    </li>
+
+                    <?php foreach ($temuanBaru as $t):
+
+                        $kode =
+                            'RTL-' .
+                            str_pad(
+                                (string) $t->id,
+                                4,
+                                '0',
+                                STR_PAD_LEFT
+                            );
+
+                    ?>
+
+                        <li class="notif-item"
+                            data-category="temuan_baru">
+
+                            <div class="d-flex align-items-start gap-3">
+
+                                <div class="notif-icon"
+                                    style="background: #f8d7da; color: #721c24;">
+
+                                    <i class="bi bi-exclamation-circle"></i>
+
+                                </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($t->audit_title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        Risiko:
+                                        <?= esc($t->tingkat_risiko) ?>
+
+                                        •
+
+                                        <i class="bi bi-building me-1"></i>
+
+                                        <?= esc($t->auditee_name ?? 'Unit') ?>
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/pimpinan/rtl/detail/<?= $kode ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Lihat Detail
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </li>
+
+                    <?php endforeach; ?>
+
+                <?php endif; ?>
+
+
+                <!-- RTL MENUNGGU -->
+
+                <?php if (!empty($rtlMenunggu)): ?>
+
+                    <li class="notif-section-title"
+                        data-category="rtl">
+
+                        RTL Menunggu Persetujuan Auditor
+
+                    </li>
+
+                    <?php foreach ($rtlMenunggu as $t):
+
+                        $kode =
+                            'RTL-' .
+                            str_pad(
+                                (string) $t->id,
+                                4,
+                                '0',
+                                STR_PAD_LEFT
+                            );
+
+                    ?>
+
+                        <li class="notif-item"
+                            data-category="rtl">
+
+                            <div class="d-flex align-items-start gap-3">
+
+                                <div class="notif-icon"
+                                    style="background: #fff3cd; color: #856404;">
+
+                                    <i class="bi bi-send-check"></i>
+
+                                </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($t->audit_title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        <i class="bi bi-building me-1"></i>
+
+                                        <?= esc($t->auditee_name ?? 'Unit') ?>
+
+                                        • Rencana tindak lanjut diajukan,
+                                        menunggu persetujuan auditor
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/pimpinan/rtl/detail/<?= $kode ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Lihat Detail
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </li>
+
+                    <?php endforeach; ?>
+
+                <?php endif; ?>
+
+
+                <!-- RTL TERVERIFIKASI -->
+
+                <?php if (!empty($temuanTerverifikasi)): ?>
+
+                    <li class="notif-section-title"
+                        data-category="rtl_closed">
+
+                        RTL Terverifikasi
+
+                    </li>
+
+                    <?php foreach ($temuanTerverifikasi as $t):
+
+                        $kode =
+                            'RTL-' .
+                            str_pad(
+                                (string) $t->id,
+                                4,
+                                '0',
+                                STR_PAD_LEFT
+                            );
+
+                    ?>
+
+                        <li class="notif-item"
+                            data-category="rtl_closed">
+
+                            <div class="d-flex align-items-start gap-3">
+
+                                <div class="notif-icon"
+                                    style="background: #d4edda; color: #155724;">
+
+                                    <i class="bi bi-check-circle"></i>
+
+                                </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($t->audit_title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        <i class="bi bi-building me-1"></i>
+
+                                        <?= esc($t->auditee_name ?? 'Unit') ?>
+
+                                        • Terverifikasi:
+
+                                        <?= $t->closed_at
+                                            ? date('d M Y', strtotime($t->closed_at))
+                                            : '-' ?>
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/pimpinan/rtl/detail/<?= $kode ?>"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Lihat Detail
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </li>
+
+                    <?php endforeach; ?>
+
+                <?php endif; ?>
+
+
+                <!-- LHA SELESAI -->
+
+                <?php if (!empty($lhaSelesai)): ?>
+
+                    <li class="notif-section-title"
+                        data-category="selesai">
+
+                        Laporan Hasil Audit (LHA) Baru
+
+                    </li>
+
+                    <?php foreach ($lhaSelesai as $a): ?>
+
+                        <li class="notif-item"
+                            data-category="selesai">
+
+                            <div class="d-flex align-items-start gap-3">
+
+                                <div class="notif-icon"
+                                    style="background: #d4edda; color: #155724;">
+
+                                    <i class="bi bi-file-earmark-check"></i>
+
+                                </div>
+
+                                <div class="notif-content">
+
+                                    <div class="notif-title">
+                                        <?= esc($a->title) ?>
+                                    </div>
+
+                                    <div class="notif-subtitle">
+
+                                        Periode:
+                                        <?= esc($a->nama_periode) ?>
+
+                                        • Selesai:
+                                        <?= date('d M Y', strtotime($a->updated_at)) ?>
+
+                                    </div>
+
+                                    <div class="notif-actions">
+
+                                        <a href="/pimpinan/lha"
+                                            class="notif-btn">
+
+                                            <i class="bi bi-eye me-1"></i>
+                                            Tinjau LHA
+
+                                        </a>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </li>
+
+                    <?php endforeach; ?>
+
+                <?php endif; ?>
+
             <?php endif; ?>
 
         <?php endif; ?>
+
     </ul>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
-    // Toggle Filter Menu (Manual, tanpa Bootstrap Dropdown)
-    const filterToggleBtn = document.getElementById('filterToggleBtn');
-    const filterMenu = document.getElementById('filterMenu');
-    const filterChevron = document.getElementById('filterChevron');
+
+    // ==========================================
+    // TOGGLE FILTER MENU
+    // ==========================================
+
+    const filterToggleBtn =
+        document.getElementById('filterToggleBtn');
+
+    const filterMenu =
+        document.getElementById('filterMenu');
+
+    const filterChevron =
+        document.getElementById('filterChevron');
 
     filterToggleBtn.addEventListener('click', function(event) {
-        event.stopPropagation(); // Mencegah event merambat ke parent dropdown
-        filterMenu.classList.toggle('show');
-        filterToggleBtn.classList.toggle('active');
-        filterChevron.style.transform = filterMenu.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0)';
-    });
 
-    // Tutup filter menu ketika klik di luar
-    document.addEventListener('click', function (event) {
-        if (!filterToggleBtn.contains(event.target) && !filterMenu.contains(event.target)) {
-            filterMenu.classList.remove('show');
-            filterToggleBtn.classList.remove('active');
-            filterChevron.style.transform = 'rotate(0)';
-        }
-    });
-
-    // Mencegah popup notifikasi menutup saat diklik di area panel
-    document.getElementById('notifPanel').addEventListener('click', function (event) {
         event.stopPropagation();
+
+        filterMenu.classList.toggle('show');
+
+        filterToggleBtn.classList.toggle('active');
+
+        filterChevron.style.transform =
+            filterMenu.classList.contains('show')
+                ? 'rotate(180deg)'
+                : 'rotate(0)';
+
     });
 
-    // Fungsi Filter
+
+    // ==========================================
+    // TUTUP FILTER SAAT KLIK DI LUAR
+    // ==========================================
+
+    document.addEventListener('click', function(event) {
+
+        if (
+            !filterToggleBtn.contains(event.target) &&
+            !filterMenu.contains(event.target)
+        ) {
+
+            filterMenu.classList.remove('show');
+
+            filterToggleBtn.classList.remove('active');
+
+            filterChevron.style.transform = 'rotate(0)';
+
+        }
+
+    });
+
+
+    // ==========================================
+    // MENCEGAH DROPDOWN MENUTUP
+    // ==========================================
+
+    document.getElementById('notifPanel')
+        .addEventListener('click', function(event) {
+
+            event.stopPropagation();
+
+        });
+
+
+    // ==========================================
+    // FILTER NOTIFIKASI
+    // ==========================================
+
     let currentFilter = 'all';
 
     function setFilter(filterType, filterName, event) {
+
         event.stopPropagation();
 
         currentFilter = filterType;
-        document.getElementById('filterLabel').innerHTML = `<i class="bi bi-funnel me-2"></i>Filter: ${filterName}`;
 
-        // Tutup filter menu setelah memilih
+        document.getElementById('filterLabel').innerHTML =
+            `<i class="bi bi-funnel me-2"></i>Filter: ${filterName}`;
+
         filterMenu.classList.remove('show');
+
         filterToggleBtn.classList.remove('active');
+
         filterChevron.style.transform = 'rotate(0)';
 
-        // Update active state di filter menu
-        document.querySelectorAll('.notif-filter-item').forEach(item => {
-            item.classList.remove('active');
-            if (item.dataset.filter === filterType) {
-                item.classList.add('active');
-            }
-        });
+
+        // Update active filter
+
+        document.querySelectorAll('.notif-filter-item')
+            .forEach(item => {
+
+                item.classList.remove('active');
+
+                if (item.dataset.filter === filterType) {
+
+                    item.classList.add('active');
+
+                }
+
+            });
+
 
         let visibleItemsCount = 0;
 
-        // Filter notifikasi
-        document.querySelectorAll('.notif-item').forEach(item => {
-            if (filterType === 'all') {
-                item.classList.remove('hidden');
-                visibleItemsCount++;
-            } else {
-                if (item.dataset.category === filterType) {
+
+        // Filter item
+
+        document.querySelectorAll('.notif-item')
+            .forEach(item => {
+
+                if (filterType === 'all') {
+
                     item.classList.remove('hidden');
+
                     visibleItemsCount++;
+
                 } else {
-                    item.classList.add('hidden');
+
+                    if (item.dataset.category === filterType) {
+
+                        item.classList.remove('hidden');
+
+                        visibleItemsCount++;
+
+                    } else {
+
+                        item.classList.add('hidden');
+
+                    }
+
                 }
-            }
-        });
+
+            });
+
 
         // Sembunyikan section title yang kosong
-        document.querySelectorAll('.notif-section-title').forEach(title => {
-            const nextItems = [];
-            let next = title.nextElementSibling;
-            while (next && !next.classList.contains('notif-section-title') && !next.classList.contains('filter-empty-msg')) {
-                if (next.classList.contains('notif-item') && !next.classList.contains('hidden')) {
-                    nextItems.push(next);
-                }
-                next = next.nextElementSibling;
-            }
-            if (nextItems.length === 0) {
-                title.classList.add('hidden');
-            } else {
-                title.classList.remove('hidden');
-            }
-        });
 
-        // Tampilkan pesan "Kosong" jika filter tidak menemukan hasil
-        const emptyMsg = document.getElementById('filterEmptyMsg');
-        if (visibleItemsCount === 0 && filterType !== 'all') {
-            emptyMsg.classList.add('show');
-        } else {
-            emptyMsg.classList.remove('show');
-        }
-    }
+        document.querySelectorAll('.notif-section-title')
+            .forEach(title => {
 
-    // Konfirmasi aktivasi periode
-    function konfirmasiAktifkan(id, nama) {
-        Swal.fire({
-            title: 'Aktifkan Periode?',
-            html: `Apakah Anda yakin ingin mengaktifkan periode <strong>"${nama}"</strong>?<br><small class="text-muted">Auditor dapat mulai membuat rencana audit baru.</small>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#f57e20',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="bi bi-check-circle me-1"></i> Ya, Aktifkan!',
-            cancelButtonText: 'Batal',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire({
-                    title: 'Memproses...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
+                const nextItems = [];
+
+                let next = title.nextElementSibling;
+
+                while (
+                    next &&
+                    !next.classList.contains('notif-section-title') &&
+                    !next.classList.contains('filter-empty-msg')
+                ) {
+
+                    if (
+                        next.classList.contains('notif-item') &&
+                        !next.classList.contains('hidden')
+                    ) {
+
+                        nextItems.push(next);
+
                     }
-                });
-                window.location.href = `/admin/periodes/aktifkan/${id}`;
-            }
-        });
+
+                    next = next.nextElementSibling;
+
+                }
+
+                if (nextItems.length === 0) {
+
+                    title.classList.add('hidden');
+
+                } else {
+
+                    title.classList.remove('hidden');
+
+                }
+
+            });
+
+
+        // Pesan kosong
+
+        const emptyMsg =
+            document.getElementById('filterEmptyMsg');
+
+        if (
+            visibleItemsCount === 0 &&
+            filterType !== 'all'
+        ) {
+
+            emptyMsg.classList.add('show');
+
+        } else {
+
+            emptyMsg.classList.remove('show');
+
+        }
+
     }
 
-    // Perpanjang deadline audit
-    function perpanjangDeadline(id, judul, deadlineLama) {
+
+    // ==========================================
+    // KONFIRMASI AKTIVASI PERIODE
+    // ==========================================
+
+    function konfirmasiAktifkan(id, nama) {
+
         Swal.fire({
-            title: 'Perpanjang Deadline Audit',
+
+            title: 'Aktifkan Periode?',
+
             html: `
-                <p class="mb-2">Audit: <strong>${judul}</strong></p>
-                <p class="mb-3 text-muted" style="font-size: 0.9rem;">Deadline lama: ${deadlineLama}</p>
-                <label class="form-label text-start d-block fw-bold">Tambah hari:</label>
-                <select id="tambahHari" class="form-select">
-                    <option value="3">+3 Hari</option>
-                    <option value="7" selected>+7 Hari</option>
-                    <option value="14">+14 Hari</option>
-                    <option value="30">+30 Hari</option>
+                Apakah Anda yakin ingin mengaktifkan
+                periode <strong>"${nama}"</strong>?
+                <br>
+                <small class="text-muted">
+                    Auditor dapat mulai membuat rencana audit baru.
+                </small>
+            `,
+
+            icon: 'warning',
+
+            showCancelButton: true,
+
+            confirmButtonColor: '#f57e20',
+
+            cancelButtonColor: '#6c757d',
+
+            confirmButtonText:
+                '<i class="bi bi-check-circle me-1"></i> Ya, Aktifkan!',
+
+            cancelButtonText: 'Batal',
+
+            reverseButtons: true
+
+        }).then((result) => {
+
+            if (result.isConfirmed) {
+
+                Swal.fire({
+
+                    title: 'Memproses...',
+
+                    allowOutsideClick: false,
+
+                    didOpen: () => {
+
+                        Swal.showLoading();
+
+                    }
+
+                });
+
+                window.location.href =
+                    `/admin/periodes/aktifkan/${id}`;
+
+            }
+
+        });
+
+    }
+
+
+    // ==========================================
+    // PERPANJANG DEADLINE AUDIT
+    // ==========================================
+
+    function perpanjangDeadline(
+        id,
+        judul,
+        deadlineLama
+    ) {
+
+        Swal.fire({
+
+            title: 'Perpanjang Deadline Audit',
+
+            html: `
+                <p class="mb-2">
+                    Audit:
+                    <strong>${judul}</strong>
+                </p>
+
+                <p class="mb-3 text-muted"
+                    style="font-size: 0.9rem;">
+
+                    Deadline lama:
+                    ${deadlineLama}
+
+                </p>
+
+                <label class="form-label text-start d-block fw-bold">
+                    Tambah hari:
+                </label>
+
+                <select id="tambahHari"
+                    class="form-select">
+
+                    <option value="3">
+                        +3 Hari
+                    </option>
+
+                    <option value="7" selected>
+                        +7 Hari
+                    </option>
+
+                    <option value="14">
+                        +14 Hari
+                    </option>
+
+                    <option value="30">
+                        +30 Hari
+                    </option>
+
                 </select>
             `,
+
             icon: 'info',
+
             showCancelButton: true,
+
             confirmButtonColor: '#065fd4',
+
             cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="bi bi-clock-history me-1"></i> Perpanjang',
+
+            confirmButtonText:
+                '<i class="bi bi-clock-history me-1"></i> Perpanjang',
+
             cancelButtonText: 'Batal',
+
             reverseButtons: true
+
         }).then((result) => {
+
             if (result.isConfirmed) {
-                const tambahHari = document.getElementById('tambahHari').value;
+
+                const tambahHari =
+                    document.getElementById('tambahHari').value;
+
                 Swal.fire({
+
                     title: 'Memproses...',
+
                     allowOutsideClick: false,
+
                     didOpen: () => {
+
                         Swal.showLoading();
+
                     }
+
                 });
 
-                fetch('/admin/planning/perpanjang-deadline', {
+                fetch(
+                    '/admin/planning/perpanjang-deadline',
+                    {
                         method: 'POST',
+
                         headers: {
-                            'Content-Type': 'application/json',
-                            'X-Requested-With': 'XMLHttpRequest'
+                            'Content-Type':
+                                'application/json',
+
+                            'X-Requested-With':
+                                'XMLHttpRequest'
                         },
+
                         body: JSON.stringify({
+
                             audit_id: id,
-                            tambah_hari: parseInt(tambahHari)
+
+                            tambah_hari:
+                                parseInt(tambahHari)
+
                         })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            Swal.fire({
-                                    icon: 'success',
-                                    title: 'Berhasil!',
-                                    text: data.message,
-                                    timer: 2000,
-                                    showConfirmButton: false
-                                })
-                                .then(() => {
-                                    location.reload();
-                                });
-                        } else {
-                            Swal.fire('Gagal!', data.message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        Swal.fire('Error!', 'Terjadi kesalahan sistem', 'error');
-                    });
+
+                    }
+                )
+
+                .then(response => response.json())
+
+                .then(data => {
+
+                    if (data.status === 'success') {
+
+                        Swal.fire({
+
+                            icon: 'success',
+
+                            title: 'Berhasil!',
+
+                            text: data.message,
+
+                            timer: 2000,
+
+                            showConfirmButton: false
+
+                        })
+                        .then(() => {
+
+                            location.reload();
+
+                        });
+
+                    } else {
+
+                        Swal.fire(
+                            'Gagal!',
+                            data.message,
+                            'error'
+                        );
+
+                    }
+
+                })
+
+                .catch(error => {
+
+                    console.error('Error:', error);
+
+                    Swal.fire(
+                        'Error!',
+                        'Terjadi kesalahan sistem',
+                        'error'
+                    );
+
+                });
+
             }
+
         });
+
     }
+
 </script>
