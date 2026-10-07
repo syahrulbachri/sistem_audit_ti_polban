@@ -145,12 +145,66 @@ $routes->group('pimpinan', function ($routes) {
     $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
 });
 
-// Route untuk akses file bukti perbaikan (public access)
-// PERBAIKAN: Tambahkan type hint 'string' pada parameter $filename
-$routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
-    $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
-    if (file_exists($filePath)) {
-        return $this->response->download($filePath, true);
+// Route untuk akses file bukti perbaikan - PERBAIKAN FINAL
+// Route ini akan mencari file berdasarkan nama asli di database, 
+// lalu menyajikan file dengan nama acak yang ada di folder
+$routes->get('uploads/bukti_perbaikan/(:any)', function($filename) {
+    // Decode filename (untuk handle spasi dan karakter khusus)
+    $filename = urldecode($filename);
+    
+    $db = \Config\Database::connect();
+    
+    // LANGKAH 1: Cari di tabel audit_question_assignments (untuk file revisi)
+    $fileData = $db->table('audit_question_assignments')
+        ->select('evidence_file, evidence_filename')
+        ->where('evidence_filename', $filename)
+        ->get()->getRow();
+    
+    // LANGKAH 2: Jika tidak ada di assignments, cari di folder dengan nama asli
+    if (!$fileData) {
+        $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
+        if (file_exists($filePath)) {
+            $mimeType = mime_content_type($filePath);
+            header('Content-Type: ' . $mimeType);
+            header('Content-Disposition: inline; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
+        }
     }
-    throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+    
+    // LANGKAH 3: Jika ada di database sebagai BLOB, serve langsung dari database
+    if ($fileData && !empty($fileData->evidence_file)) {
+        $mimeType = mime_content_type($fileData->evidence_filename);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . $fileData->evidence_filename . '"');
+        header('Content-Length: ' . strlen($fileData->evidence_file));
+        echo $fileData->evidence_file;
+        exit;
+    }
+    
+    // LANGKAH 4: Cari di folder uploads dengan pattern matching (nama acak)
+    // Karena file disimpan dengan getRandomName(), kita cari file yang mungkin cocok
+    $folder = FCPATH . 'uploads/bukti_perbaikan/';
+    $files = glob($folder . '*');
+    
+    // Cari file berdasarkan ekstensi yang sama dan ukuran terdekat
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $matchingFiles = array_filter($files, function($f) use ($ext) {
+        return strtolower(pathinfo($f, PATHINFO_EXTENSION)) === $ext;
+    });
+    
+    // Jika hanya ada 1 file dengan ekstensi tersebut, gunakan itu
+    if (count($matchingFiles) === 1) {
+        $filePath = array_values($matchingFiles)[0];
+        $mimeType = mime_content_type($filePath);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($filePath));
+        readfile($filePath);
+        exit;
+    }
+    
+    // File tidak ditemukan sama sekali
+    show_404();
 });

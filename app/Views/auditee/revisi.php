@@ -123,6 +123,16 @@
     </form>
 <?php endif; ?>
 
+<!-- ⬇️ TAMBAHKAN BLOK DEBUG INI ⬇️ -->
+<?php if (session()->getFlashdata('debug_info')): ?>
+    <div class="alert alert-info alert-dismissible fade show border-info" style="background-color: #e7f3ff; border-left: 5px solid #0d6efd !important;">
+        <i class="bi bi-bug me-2"></i>
+        <strong>Laporan Debug Sistem:</strong><br>
+        <?= session()->getFlashdata('debug_info') ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<?php endif; ?>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var MAX = 5 * 1024 * 1024; // 5 MB
