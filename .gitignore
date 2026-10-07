@@ -124,3 +124,7 @@ _modules/*
 
 /results/
 /phpunit.xml
+
+# File bukti perbaikan yang diunggah pengguna
+/public/uploads/bukti_perbaikan/*
+!/public/uploads/bukti_perbaikan/.gitkeep
