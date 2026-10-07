@@ -88,7 +88,7 @@ class AuditListController extends BaseController
         ]);
     }
 
-    public function history()
+        public function history()
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditor') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
@@ -97,22 +97,49 @@ class AuditListController extends BaseController
         $db = \Config\Database::connect();
         $auditorId = session()->get('id');
 
-        $audits = $db->table('audits')
-            ->select('audits.*, 
-                               periodes.nama_periode,
-                               auditee.fullname as auditee_name')
-            ->join('periodes', 'periodes.id = audits.periode_id', 'left')
-            ->join('users as auditee', 'auditee.id = audits.auditee_id', 'left')
-            ->where('audits.created_by_auditor', $auditorId)
-            ->where('audits.status', 'selesai')
-            ->orderBy('audits.updated_at', 'DESC')
-            ->get()
-            ->getResult();
+        // Ambil parameter filter
+        $search  = trim((string) $this->request->getGet('q'));
+        $fPeriode = $this->request->getGet('periode') ?? '';
+        $fFramework = $this->request->getGet('framework') ?? '';
+
+        // Ambil daftar periode dan framework untuk dropdown
+        $periodes = $db->table('periodes')->orderBy('nama_periode', 'DESC')->get()->getResult();
+        $frameworks = $db->table('frameworks')->where('is_active', 1)->orderBy('nama', 'ASC')->get()->getResult();
+
+        // Build query utama - HANYA audit yang berstatus 'selesai'
+        $query = $db->table('audits a')
+            ->select('a.*, p.nama_periode, u.fullname as auditee_name, f.nama as framework_nama')
+            ->join('periodes p', 'p.id = a.periode_id', 'left')
+            ->join('users u', 'u.id = a.auditee_id', 'left')
+            ->join('frameworks f', 'f.nama = a.framework', 'left')
+            ->where('a.created_by_auditor', $auditorId)
+            ->where('a.status', 'selesai');
+
+        // Terapkan filter
+        if ($search !== '') {
+            $query->groupStart()
+                ->like('a.title', $search)
+                ->orLike('u.fullname', $search)
+                ->groupEnd();
+        }
+        if ($fPeriode !== '') {
+            $query->where('a.periode_id', $fPeriode);
+        }
+        if ($fFramework !== '') {
+            $query->where('a.framework', $fFramework);
+        }
+
+        $audits = $query->orderBy('a.updated_at', 'DESC')->get()->getResult();
 
         return view('auditor/audit_history', [
-            'title'      => 'Riwayat Audit - Sistem Audit IT POLBAN',
+            'title' => 'Riwayat Audit - Sistem Audit IT POLBAN',
             'page_title' => 'Riwayat Audit',
-            'audits'     => $audits
+            'audits' => $audits,
+            'periodes' => $periodes,
+            'frameworks' => $frameworks,
+            'search' => $search,
+            'fPeriode' => $fPeriode,
+            'fFramework' => $fFramework
         ]);
     }
 }
