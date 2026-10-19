@@ -257,39 +257,59 @@
         </div>
     </div>
 
-    <!-- Read Only (Status: Closed) -->
+            <!-- Read Only (Status: Closed) -->
 <?php elseif ($finding->status === 'Closed'): ?>
+
+    <!-- Menampilkan Bukti Perbaikan -->
     <?php if(!empty($finding->bukti_perbaikan)): ?>
-    <?php 
-        $filename = $finding->bukti_perbaikan;
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
-        
-        // PERBAIKAN: URL langsung ke file di folder (karena sekarang nama file sudah benar)
-        $fileUrl = base_url('uploads/bukti_perbaikan/' . urlencode($filename));
-    ?>
-    <div class="mb-4">
-        <h6 class="fw-bold mb-2 text-primary"><i class="bi bi-paperclip me-2"></i>Bukti Perbaikan dari Auditee:</h6>
-        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border">
-            <i class="bi <?= $isImage ? 'bi-image text-primary' : 'bi-file-earmark-text text-secondary' ?>" style="font-size: 2.5rem;"></i>
-            <div class="flex-grow-1">
-                <strong class="d-block"><?= esc($filename) ?></strong>
-                <small class="text-muted">File bukti yang diupload oleh Auditee</small>
+        <?php 
+            $filename = $finding->bukti_perbaikan;
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
+            $fileUrl = base_url('uploads/bukti_perbaikan/' . urlencode($filename));
+        ?>
+        <div class="card border-0 shadow-sm info-card mb-4">
+            <div class="card-body p-4">
+                <h6 class="section-title text-primary"><i class="bi bi-paperclip me-2"></i>Bukti Perbaikan (Selesai)</h6>
+                <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border">
+                    <i class="bi <?= $isImage ? 'bi-image text-primary' : 'bi-file-earmark-text text-secondary' ?>" style="font-size: 2.5rem;"></i>
+                    <div class="flex-grow-1">
+                        <strong class="d-block"><?= esc($filename) ?></strong>
+                        <small class="text-muted">File bukti yang telah diverifikasi</small>
+                    </div>
+                    <?php if($isImage): ?>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="previewImage('<?= $fileUrl ?>', '<?= esc($filename) ?>')">
+                            <i class="bi bi-eye me-1"></i>Lihat Preview
+                        </button>
+                    <?php else: ?>
+                        <a href="<?= $fileUrl ?>" class="btn btn-primary btn-sm" download>
+                            <i class="bi bi-download me-1"></i>Download
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
-            <?php if($isImage): ?>
-                <button type="button" class="btn btn-primary btn-sm" onclick="previewImage('<?= $fileUrl ?>', '<?= esc($filename) ?>')">
-                    <i class="bi bi-eye me-1"></i>Lihat Preview
-                </button>
-            <?php else: ?>
-                <a href="<?= $fileUrl ?>" class="btn btn-primary btn-sm" download>
-                    <i class="bi bi-download me-1"></i>Download
-                </a>
-            <?php endif; ?>
+        </div>
+        <!-- ✅ PERBAIKAN: Menggunakan 'auditor_note' sesuai nama kolom di database -->
+    <?php if (!empty($finding->auditor_note)): ?>
+    <div class="card border-0 shadow-sm info-card mb-4">
+        <div class="card-body p-4">
+            <h6 class="section-title text-primary">
+                <i class="bi bi-chat-left-text me-2"></i>Catatan Verifikasi Akhir (Auditor)
+            </h6>
+            <div class="revisi-box">
+                <!-- PENTING: esc() tetap dipakai agar payload XSS ditampilkan sebagai teks biasa (AMAN) -->
+                <p class="mb-0"><?= nl2br(esc($finding->auditor_note)) ?></p>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <i class="bi bi-clock me-1"></i>Ditutup pada: <?= date('d M Y H:i', strtotime($finding->closed_at ?? $finding->updated_at)) ?>
+            </small>
         </div>
     </div>
-<?php else: ?>
-    <div class="alert alert-warning mb-4"><i class="bi bi-info-circle me-2"></i>Auditee belum mengupload bukti perbaikan.</div>
-<?php endif; ?>
+    <?php endif; ?>
+    <?php else: ?>
+        <div class="alert alert-warning mb-4"><i class="bi bi-info-circle me-2"></i>Tidak ada bukti perbaikan yang tercatat.</div>
+    <?php endif; ?>
+
 <?php endif; ?>
 
 <!-- ========================================== -->
