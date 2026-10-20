@@ -134,17 +134,22 @@ $routes->group('pimpinan', function ($routes) {
     $routes->get('rtl', 'Pimpinan\RtlController::index');
     $routes->get('rtl/detail/(:segment)', 'Pimpinan\RtlController::detail/$1');
     $routes->get('arsip', 'Pimpinan\ArsipController::index');
-
+    $routes->get('lha/view-evidence/(:num)', 'Pimpinan\LhaController::viewEvidence/$1');
+    $routes->get('lha/download-evidence/(:num)', 'Pimpinan\LhaController::downloadEvidence/$1');
     // Route untuk preview & download bukti perbaikan RTL (Pimpinan)
     // PERBAIKAN: route ini ada DI DALAM group('pimpinan'), jadi jangan tulis prefix
     // 'pimpinan/' lagi — sebelumnya URL-nya jadi /pimpinan/pimpinan/rtl/...
     $routes->get('rtl/view-bukti/(:num)', 'Pimpinan\RtlController::viewBukti/$1');
     $routes->get('rtl/download-bukti/(:num)', 'Pimpinan\RtlController::downloadBukti/$1');
+    // Bukti yang dikirim auditee saat menjawab pertanyaan audit (parameter = ID temuan)
+    $routes->get('rtl/view-jawaban/(:num)', 'Pimpinan\RtlController::viewJawaban/$1');
+    $routes->get('rtl/download-jawaban/(:num)', 'Pimpinan\RtlController::downloadJawaban/$1');
 
     // Route Log Aktivitas Pimpinan
     $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
 });
 
+<<<<<<< Updated upstream
 // Route untuk akses file bukti perbaikan (public access)
 // PERBAIKAN: Tambahkan type hint 'string' pada parameter $filename
 $routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
@@ -153,4 +158,68 @@ $routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
         return $this->response->download($filePath, true);
     }
     throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+=======
+// Route untuk akses file bukti perbaikan - PERBAIKAN FINAL
+// Route ini akan mencari file berdasarkan nama asli di database, 
+// lalu menyajikan file dengan nama acak yang ada di folder
+$routes->get('uploads/bukti_perbaikan/(:any)', function ($filename) {
+    // Decode filename (untuk handle spasi dan karakter khusus)
+    $filename = urldecode($filename);
+
+    $db = \Config\Database::connect();
+
+    // LANGKAH 1: Cari di tabel audit_question_assignments (untuk file revisi)
+    $fileData = $db->table('audit_question_assignments')
+        ->select('evidence_file, evidence_filename')
+        ->where('evidence_filename', $filename)
+        ->get()->getRow();
+
+    // LANGKAH 2: Jika tidak ada di assignments, cari di folder dengan nama asli
+    if (!$fileData) {
+        $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
+        if (file_exists($filePath)) {
+            $mimeType = mime_content_type($filePath);
+            header('Content-Type: ' . $mimeType);
+            header('Content-Disposition: inline; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
+        }
+    }
+
+    // LANGKAH 3: Jika ada di database sebagai BLOB, serve langsung dari database
+    if ($fileData && !empty($fileData->evidence_file)) {
+        $mimeType = mime_content_type($fileData->evidence_filename);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . $fileData->evidence_filename . '"');
+        header('Content-Length: ' . strlen($fileData->evidence_file));
+        echo $fileData->evidence_file;
+        exit;
+    }
+
+    // LANGKAH 4: Cari di folder uploads dengan pattern matching (nama acak)
+    // Karena file disimpan dengan getRandomName(), kita cari file yang mungkin cocok
+    $folder = FCPATH . 'uploads/bukti_perbaikan/';
+    $files = glob($folder . '*');
+
+    // Cari file berdasarkan ekstensi yang sama dan ukuran terdekat
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $matchingFiles = array_filter($files, function ($f) use ($ext) {
+        return strtolower(pathinfo($f, PATHINFO_EXTENSION)) === $ext;
+    });
+
+    // Jika hanya ada 1 file dengan ekstensi tersebut, gunakan itu
+    if (count($matchingFiles) === 1) {
+        $filePath = array_values($matchingFiles)[0];
+        $mimeType = mime_content_type($filePath);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($filePath));
+        readfile($filePath);
+        exit;
+    }
+
+    // File tidak ditemukan sama sekali
+    show_404();
+>>>>>>> Stashed changes
 });

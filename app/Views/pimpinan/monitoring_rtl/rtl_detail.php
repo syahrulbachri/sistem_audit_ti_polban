@@ -13,6 +13,7 @@
 
 <?= $this->section('content') ?>
 
+
 <style>
     :root {
         --primary-navy: #273272;
@@ -321,14 +322,14 @@
     .status-timeline {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
     }
 
     .status-item {
         display: flex;
         align-items: flex-start;
         gap: 10px;
-        padding: 10px;
+        padding: 7px 10px;
         border-radius: 8px;
         background: var(--gray-50);
         border-left: 4px solid var(--gray-300);
@@ -383,7 +384,7 @@
     .info-card {
         background: white;
         border-radius: 12px;
-        padding: 16px;
+        padding: 14px 16px;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
         border: 1px solid var(--gray-200);
         margin-bottom: 16px;
@@ -416,7 +417,8 @@
 
     /* Data Rows */
     .data-row {
-        margin-bottom: 10px;
+        margin-bottom: 0;
+        min-width: 0;
     }
 
     .data-label {
@@ -447,120 +449,253 @@
         color: var(--warning-orange);
     }
 
-    /* Highlight Boxes */
-    .highlight-box {
-        border-radius: 8px;
-        padding: 10px;
-        margin-top: 10px;
-        border-left: 4px solid;
+
+    /* ===== Grid label/nilai (Komitmen & Info Audit) ===== */
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px 16px;
     }
 
-    .highlight-box.question {
-        background: #EFF6FF;
-        border-left-color: var(--secondary-blue);
+    .data-grid .full {
+        grid-column: 1 / -1;
     }
 
-    .highlight-box.recommendation {
-        background: #DBEAFE;
-        border-left-color: #3B82F6;
+    .data-hint {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.7rem;
     }
 
-    .highlight-box.budget-none {
-        background: #F0FDF4;
-        border-left-color: var(--success-green);
-    }
-
-    .highlight-box.budget-amount {
-        background: #FEF3C7;
-        border-left-color: var(--warning-orange);
-    }
-
-    .highlight-box.no-rtl {
-        background: #FFFBEB;
-        border-left-color: var(--warning-orange);
-    }
-
-    .highlight-box.has-rtl {
-        background: #F0F9FF;
-        border-left-color: var(--info-cyan);
-    }
-
-    .highlight-title {
-        font-size: 0.75rem;
-        font-weight: 700;
-        margin-bottom: 5px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-
-    .highlight-content {
-        font-size: 0.8rem;
+    .note-box {
+        border-left: 3px solid var(--gray-300);
+        background: var(--gray-50);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 0.82rem;
         line-height: 1.5;
         color: var(--gray-700);
     }
 
-    /* File Box */
-    .file-box {
-        background: var(--gray-50);
-        border: 2px dashed var(--gray-300);
-        border-radius: 8px;
-        padding: 14px;
-        text-align: center;
+    .note-box.has-rtl {
+        border-left-color: var(--info-cyan);
+        background: #F0F9FF;
     }
 
-    .file-icon {
-        font-size: 1.8rem;
-        margin-bottom: 6px;
-        opacity: 0.5;
+    .note-box.no-rtl {
+        border-left-color: var(--warning-orange);
+        background: #FFFBEB;
+        color: #92400E;
     }
 
-    .file-text {
-        font-size: 0.775rem;
-        color: var(--gray-600);
-    }
-
-    .file-item {
+    .note-box.budget-none {
+        border-left-color: var(--success-green);
         background: #F0FDF4;
-        border: 2px solid #86EFAC;
-        border-radius: 8px;
-        padding: 10px;
+    }
+
+    .note-box.budget-amount {
+        border-left-color: var(--warning-orange);
+        background: #FFFBEB;
+    }
+
+    /* ===== Alur Ringkasan Temuan ===== */
+    .finding-flow {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .flow-item {
+        --c: var(--gray-300);
+        display: grid;
+        grid-template-columns: 22px minmax(0, 1fr);
+        gap: 0 10px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--gray-100);
+    }
+
+    .flow-item:first-child {
+        padding-top: 0;
+    }
+
+    .flow-item:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .flow-item.question {
+        --c: var(--secondary-blue);
+    }
+
+    .flow-item.auditee {
+        --c: var(--warning-orange);
+    }
+
+    .flow-item.auditor {
+        --c: var(--primary-navy);
+    }
+
+    .flow-item.temuan {
+        --c: var(--danger-red);
+    }
+
+    .flow-item.rekom {
+        --c: var(--success-green);
+    }
+
+    .flow-num {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--c);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .flow-head {
         display: flex;
         align-items: center;
         gap: 8px;
+        margin-bottom: 4px;
+        min-height: 22px;
+        flex-wrap: wrap;
     }
 
-    .file-item-icon {
-        font-size: 1.3rem;
+    .flow-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--c);
     }
 
-    .file-item-info {
+    .flow-by {
+        margin-left: auto;
+        font-size: 0.65rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 20px;
+        background: var(--gray-100);
+        color: var(--gray-600);
+        white-space: nowrap;
+    }
+
+    .flow-by.auditee {
+        background: #FEF3C7;
+        color: #92400E;
+    }
+
+    .flow-by.auditor {
+        background: #E0E7FF;
+        color: #273272;
+    }
+
+    .flow-body {
+        font-size: 0.84rem;
+        line-height: 1.55;
+        color: var(--gray-900);
+        word-break: break-word;
+    }
+
+    .flow-sub-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+        color: var(--gray-600);
+        margin: 10px 0 0;
+    }
+
+    .flow-empty {
+        font-size: 0.78rem;
+        font-style: italic;
+        color: #92400E;
+    }
+
+    /* ===== Berkas bukti (dipakai di jawaban auditee & bukti perbaikan) ===== */
+    .evi {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 6px;
+        padding: 8px;
+        border: 1px solid var(--gray-200);
+        border-radius: 8px;
+        background: var(--gray-50);
+    }
+
+    .evi.evi-success {
+        border-color: #86EFAC;
+        background: #F0FDF4;
+    }
+
+    .evi-thumb,
+    .evi-icon {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+        border-radius: 6px;
+        border: 1px solid var(--gray-200);
+        background: white;
+    }
+
+    .evi-thumb {
+        object-fit: cover;
+        cursor: zoom-in;
+        transition: border-color .2s, transform .2s;
+    }
+
+    .evi-thumb:hover {
+        border-color: var(--secondary-blue);
+        transform: scale(1.04);
+    }
+
+    .evi-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+    }
+
+    .evi-info {
         flex: 1;
+        min-width: 0;
     }
 
-    .file-item-name {
+    .evi-name {
+        font-size: 0.78rem;
         font-weight: 600;
         color: var(--gray-900);
-        font-size: 0.8rem;
-        margin-bottom: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .file-item-desc {
-        font-size: 0.675rem;
+    .evi-meta {
+        font-size: 0.68rem;
         color: var(--gray-600);
     }
 
-    .file-actions {
+    .evi-actions {
         display: flex;
         gap: 5px;
-        flex-direction: column;
+        flex-shrink: 0;
+    }
+
+    .evi-empty {
+        font-size: 0.78rem;
+        font-style: italic;
+        color: var(--gray-600);
     }
 
     .btn-file {
         background: var(--primary-navy);
         color: white;
-        border: none;
-        padding: 5px 10px;
+        border: 1px solid var(--primary-navy);
+        padding: 4px 10px;
         border-radius: 5px;
         font-size: 0.7rem;
         font-weight: 600;
@@ -570,23 +705,54 @@
         display: inline-flex;
         align-items: center;
         gap: 3px;
+        white-space: nowrap;
     }
 
     .btn-file:hover {
         background: #1e2860;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(39, 50, 114, 0.3);
+        color: white;
     }
 
     .btn-file-outline {
         background: white;
         color: var(--primary-navy);
-        border: 1px solid var(--primary-navy);
     }
 
     .btn-file-outline:hover {
         background: var(--primary-navy);
         color: white;
+    }
+
+    @media (max-width: 576px) {
+        .evi {
+            flex-wrap: wrap;
+        }
+
+        .evi-info {
+            flex-basis: calc(100% - 60px);
+        }
+
+        .evi-actions {
+            width: 100%;
+        }
+
+        .data-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Modal preview bukti (sama seperti di detail LHA) */
+    #evidenceModal .modal-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #evidenceModal img {
+        max-height: 75vh;
+        object-fit: contain;
     }
 
     /* Verification Box */
@@ -680,6 +846,52 @@
         animation: pulse 2s infinite;
     }
 </style>
+
+<?php
+/**
+ * Render satu berkas bukti dalam satu baris ringkas.
+ * - Gambar : thumbnail + tombol "Preview" -> modal (tidak buka tab baru)
+ * - PDF    : tombol "Lihat" (tab baru, karena tidak bisa ditampilkan di modal gambar)
+ * - Semua  : tombol "Unduh"
+ */
+$renderEvidence = static function (string $filename, string $viewUrl, string $downloadUrl, string $meta = '', string $variant = ''): string {
+    $ext     = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif'], true);
+    $isPdf   = ($ext === 'pdf');
+
+    ob_start(); ?>
+    <div class="evi <?= esc($variant, 'attr') ?>">
+        <?php if ($isImage): ?>
+            <img src="<?= esc($viewUrl, 'attr') ?>" alt="<?= esc($filename, 'attr') ?>" class="evi-thumb" loading="lazy"
+                title="Klik untuk preview"
+                data-evidence-url="<?= esc($viewUrl, 'attr') ?>" data-evidence-name="<?= esc($filename, 'attr') ?>">
+        <?php else: ?>
+            <div class="evi-icon"><?= $isPdf ? '📕' : '📄' ?></div>
+        <?php endif; ?>
+
+        <div class="evi-info">
+            <div class="evi-name" title="<?= esc($filename, 'attr') ?>"><?= esc($filename) ?></div>
+            <?php if ($meta !== ''): ?>
+                <div class="evi-meta"><?= esc($meta) ?></div>
+            <?php endif; ?>
+        </div>
+
+        <div class="evi-actions">
+            <?php if ($isImage): ?>
+                <button type="button" class="btn-file btn-file-outline"
+                    data-evidence-url="<?= esc($viewUrl, 'attr') ?>" data-evidence-name="<?= esc($filename, 'attr') ?>">
+                    👁️ Preview
+                </button>
+            <?php elseif ($isPdf): ?>
+                <a href="<?= esc($viewUrl, 'attr') ?>" target="_blank" rel="noopener" class="btn-file btn-file-outline">👁️ Lihat</a>
+            <?php endif; ?>
+            <a href="<?= esc($downloadUrl, 'attr') ?>" class="btn-file">⬇️ Unduh</a>
+        </div>
+    </div>
+<?php
+    return (string) ob_get_clean();
+};
+?>
 
 <div class="rtl-detail-container">
     <!-- Back Button -->
@@ -870,6 +1082,22 @@
     <div class="content-grid">
         <!-- Left Column: Ringkasan + Komitmen -->
         <div>
+            <?php
+            $jawabanAuditee     = trim((string) ($rtl['jawaban_auditee'] ?? ''));
+            $jawabanBukti       = $rtl['jawaban_bukti'] ?? null;
+            $catatanAuditor     = trim((string) ($rtl['catatan_penilaian'] ?? ''));
+            $deskripsiMasalah   = trim((string) ($rtl['deskripsi'] ?? ''));
+            $rekomendasiAuditor = trim((string) ($rtl['rekomendasi'] ?? ''));
+
+            $jawabanBuktiMeta = '';
+            if ($jawabanBukti) {
+                $jawabanBuktiMeta = (string) ($jawabanBukti['size_label'] ?? '');
+                if (!empty($jawabanBukti['uploaded_at'])) {
+                    $jawabanBuktiMeta .= ($jawabanBuktiMeta !== '' ? ' · ' : '') . 'diunggah ' . $jawabanBukti['uploaded_at'];
+                }
+            }
+            ?>
+
             <!-- Ringkasan Temuan Audit -->
             <div class="info-card">
                 <h3 class="card-section-title">
@@ -877,91 +1105,155 @@
                     Ringkasan Temuan Audit
                 </h3>
 
-                <div class="highlight-box question">
-                    <div class="highlight-title">
-                        ❓ Pertanyaan (<?= esc($rtl['clause_code']) ?>)
+                <div class="finding-flow">
+                    <!-- 1. Pertanyaan -->
+                    <div class="flow-item question">
+                        <span class="flow-num">1</span>
+                        <div>
+                            <div class="flow-head">
+                                <span class="flow-title">Pertanyaan Audit</span>
+                                <span class="flow-by">Klausul <?= esc($rtl['clause_code']) ?></span>
+                            </div>
+                            <div class="flow-body"><?= nl2br(esc($rtl['question_text'])) ?></div>
+                        </div>
                     </div>
-                    <div class="highlight-content">
-                        <?= nl2br(esc($rtl['question_text'])) ?>
-                    </div>
-                </div>
 
-                <div class="data-row" style="margin-top: 12px;">
-                    <div class="data-label">Deskripsi Masalah</div>
-                    <div class="data-value"><?= nl2br(esc($rtl['deskripsi'])) ?></div>
-                </div>
+                    <!-- 2. Jawaban Auditee + bukti -->
+                    <div class="flow-item auditee">
+                        <span class="flow-num">2</span>
+                        <div>
+                            <div class="flow-head">
+                                <span class="flow-title">Jawaban Auditee</span>
+                                <span class="flow-by auditee">Diisi oleh Auditee</span>
+                            </div>
+                            <div class="flow-body">
+                                <?php if ($jawabanAuditee !== ''): ?>
+                                    <?= nl2br(esc($jawabanAuditee)) ?>
+                                <?php else: ?>
+                                    <div class="flow-empty">⚠️ Auditee tidak mengisi jawaban untuk pertanyaan ini.</div>
+                                <?php endif; ?>
+                            </div>
 
-                <div class="highlight-box recommendation">
-                    <div class="highlight-title">
-                        💡 Rekomendasi Auditor
+                            <div class="flow-sub-label">📎 Bukti yang dikirim Auditee</div>
+                            <?php if ($jawabanBukti): ?>
+                                <?= $renderEvidence(
+                                    (string) $jawabanBukti['filename'],
+                                    (string) $jawabanBukti['view_url'],
+                                    (string) $jawabanBukti['download_url'],
+                                    $jawabanBuktiMeta
+                                ) ?>
+                            <?php else: ?>
+                                <div class="flow-empty" style="margin-top: 4px;">⚠️ Auditee tidak mengunggah bukti pendukung.</div>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                    <div class="highlight-content">
-                        <?= nl2br(esc($rtl['rekomendasi'])) ?>
+
+                    <!-- 3. Catatan Auditor -->
+                    <div class="flow-item auditor">
+                        <span class="flow-num">3</span>
+                        <div>
+                            <div class="flow-head">
+                                <span class="flow-title">Catatan Auditor</span>
+                                <span class="flow-by auditor">Diisi oleh Auditor</span>
+                            </div>
+                            <div class="flow-body">
+                                <?php if ($catatanAuditor !== ''): ?>
+                                    <?= nl2br(esc($catatanAuditor)) ?>
+                                <?php else: ?>
+                                    <div class="flow-empty">⚠️ Auditor tidak mengisi catatan penilaian.</div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Deskripsi Temuan -->
+                    <div class="flow-item temuan">
+                        <span class="flow-num">4</span>
+                        <div>
+                            <div class="flow-head">
+                                <span class="flow-title">Deskripsi Temuan (Masalah)</span>
+                                <span class="flow-by auditor">Diisi oleh Auditor</span>
+                            </div>
+                            <div class="flow-body">
+                                <?php if ($deskripsiMasalah !== ''): ?>
+                                    <?= nl2br(esc($deskripsiMasalah)) ?>
+                                <?php else: ?>
+                                    <div class="flow-empty">⚠️ Auditor tidak mengisi deskripsi temuan.</div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Rekomendasi Perbaikan -->
+                    <div class="flow-item rekom">
+                        <span class="flow-num">5</span>
+                        <div>
+                            <div class="flow-head">
+                                <span class="flow-title">Rekomendasi Perbaikan</span>
+                                <span class="flow-by auditor">Diisi oleh Auditor</span>
+                            </div>
+                            <div class="flow-body">
+                                <?php if ($rekomendasiAuditor !== ''): ?>
+                                    <?= nl2br(esc($rekomendasiAuditor)) ?>
+                                <?php else: ?>
+                                    <div class="flow-empty">⚠️ Auditor tidak mengisi rekomendasi perbaikan.</div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Komitmen & Target -->
+            <?php $noBudget = empty($rtl['rtl_anggaran']) || $rtl['rtl_anggaran'] == 0; ?>
             <div class="info-card">
                 <h3 class="card-section-title">
                     <span class="icon">🎯</span>
                     Komitmen & Target
                 </h3>
 
-                <div class="data-row">
-                    <div class="data-label">Unit Kerja PIC</div>
-                    <div class="data-value"><?= esc($rtl['unit']) ?></div>
-                </div>
-
-                <div class="data-row">
-                    <div class="data-label">Framework</div>
-                    <div class="data-value"><?= esc($rtl['sistem']) ?></div>
-                </div>
-
-                <div class="data-row">
-                    <div class="data-label">Target Deadline</div>
-                    <div class="data-value <?= $rtl['status'] === 'overdue' ? 'danger' : ($rtl['status'] === 'closed' ? 'success' : 'warning') ?>">
-                        <?= esc($rtl['rtl_deadline']) ?>
+                <div class="data-grid">
+                    <div class="data-row">
+                        <div class="data-label">Unit Kerja PIC</div>
+                        <div class="data-value"><?= esc($rtl['unit']) ?></div>
                     </div>
-                    <?php if (!empty($rtl['rtl_deadline_status']) && $rtl['rtl_deadline'] !== '-'): ?>
-                        <small class="<?= esc($rtl['rtl_deadline_class']) ?>" style="font-size: 0.7rem; display: block; margin-top: 4px;">
-                            ⏰ <?= esc($rtl['rtl_deadline_status']) ?>
-                        </small>
-                    <?php endif; ?>
-                </div>
 
-                <div class="highlight-box <?= empty($rtl['rtl_anggaran']) || $rtl['rtl_anggaran'] == 0 ? 'budget-none' : 'budget-amount' ?>">
-                    <div class="highlight-title">
-                        💰 Estimasi Anggaran
+                    <div class="data-row">
+                        <div class="data-label">Framework</div>
+                        <div class="data-value"><?= esc($rtl['sistem']) ?></div>
                     </div>
-                    <div class="highlight-content">
-                        <?php if (empty($rtl['rtl_anggaran']) || $rtl['rtl_anggaran'] == 0): ?>
-                            <em>Tidak memerlukan anggaran</em>
+
+                    <div class="data-row">
+                        <div class="data-label">Target Deadline</div>
+                        <div class="data-value <?= $rtl['status'] === 'overdue' ? 'danger' : ($rtl['status'] === 'closed' ? 'success' : 'warning') ?>">
+                            <?= esc($rtl['rtl_deadline']) ?>
+                        </div>
+                        <?php if (!empty($rtl['rtl_deadline_status']) && $rtl['rtl_deadline'] !== '-'): ?>
+                            <small class="data-hint <?= esc($rtl['rtl_deadline_class']) ?>">⏰ <?= esc($rtl['rtl_deadline_status']) ?></small>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="data-row">
+                        <div class="data-label">💰 Estimasi Anggaran</div>
+                        <div class="data-value">
+                            <?php if ($noBudget): ?>
+                                <em>Tidak memerlukan anggaran</em>
+                            <?php else: ?>
+                                <strong>Rp <?= number_format($rtl['rtl_anggaran'], 0, ',', '.') ?></strong>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="data-row full">
+                        <?php if (!empty($rtl['rtl_description'])): ?>
+                            <div class="data-label">📝 Rencana Aksi (RTL)</div>
+                            <div class="note-box has-rtl"><?= nl2br(esc($rtl['rtl_description'])) ?></div>
                         <?php else: ?>
-                            <strong>Rp <?= number_format($rtl['rtl_anggaran'], 0, ',', '.') ?></strong>
+                            <div class="data-label">📝 Rencana Aksi (RTL)</div>
+                            <div class="note-box no-rtl">⚠️ Belum Ada RTL &mdash; Auditee belum membuat RTL.</div>
                         <?php endif; ?>
                     </div>
                 </div>
-
-                <?php if (!empty($rtl['rtl_description'])): ?>
-                    <div class="highlight-box has-rtl" style="margin-top: 10px;">
-                        <div class="highlight-title">
-                            📝 Rencana Aksi (RTL)
-                        </div>
-                        <div class="highlight-content">
-                            <?= nl2br(esc($rtl['rtl_description'])) ?>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <div class="highlight-box no-rtl" style="margin-top: 10px;">
-                        <div class="highlight-title">
-                            ⚠️ Belum Ada RTL
-                        </div>
-                        <div class="highlight-content">
-                            Auditee belum membuat RTL.
-                        </div>
-                    </div>
-                <?php endif; ?>
             </div>
         </div>
 
@@ -971,38 +1263,25 @@
             <div class="info-card">
                 <h3 class="card-section-title">
                     <span class="icon">📎</span>
-                    Berkas Bukti
+                    Bukti Perbaikan (RTL)
                 </h3>
 
                 <?php if (!empty($rtl['bukti_perbaikan'])): ?>
-                    <div class="file-item">
-                        <div class="file-item-icon">📄</div>
-                        <div class="file-item-info">
-                            <div class="file-item-name"><?= esc($rtl['bukti_perbaikan']) ?></div>
-                            <div class="file-item-desc">Bukti perbaikan telah diunggah</div>
-                        </div>
-                        <div class="file-actions">
-                            <!-- Tombol Lihat: controller mengirim file dengan Content-Disposition: inline -->
-                            <a href="<?= esc($rtl['bukti_url']) ?>" target="_blank" rel="noopener"
-                                class="btn-file btn-file-outline">
-                                👁️ Lihat
-                            </a>
-                            <!-- Tombol Download: controller mengirim header attachment -->
-                            <a href="<?= esc($rtl['bukti_download_url']) ?>" class="btn-file">
-                                ⬇️ Download
-                            </a>
-                        </div>
-                    </div>
+                    <?= $renderEvidence(
+                        (string) $rtl['bukti_perbaikan'],
+                        (string) $rtl['bukti_url'],
+                        (string) $rtl['bukti_download_url'],
+                        'Bukti perbaikan telah diunggah',
+                        'evi-success'
+                    ) ?>
                 <?php else: ?>
-                    <div class="file-box">
-                        <div class="file-icon">📁</div>
-                        <div class="file-text">
-                            <?php if ($rtl['status'] === 'closed'): ?>
-                                Tidak ada berkas bukti
-                            <?php else: ?>
-                                Belum ada bukti perbaikan
-                            <?php endif; ?>
-                        </div>
+                    <div class="evi-empty">
+                        📁
+                        <?php if ($rtl['status'] === 'closed'): ?>
+                            Tidak ada berkas bukti
+                        <?php else: ?>
+                            Belum ada bukti perbaikan
+                        <?php endif; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -1025,30 +1304,68 @@
                     Informasi Audit
                 </h3>
 
-                <div class="data-row">
-                    <div class="data-label">Tanggal Temuan</div>
-                    <div class="data-value">📅 <?= esc($rtl['created_at']) ?></div>
-                </div>
-
-                <?php if (!empty($rtl['closed_at'])): ?>
+                <div class="data-grid">
                     <div class="data-row">
-                        <div class="data-label">Tanggal Ditutup</div>
-                        <div class="data-value success">✅ <?= esc($rtl['closed_at']) ?></div>
+                        <div class="data-label">Tanggal Temuan</div>
+                        <div class="data-value">📅 <?= esc($rtl['created_at']) ?></div>
                     </div>
-                <?php endif; ?>
 
-                <div class="data-row">
-                    <div class="data-label">Auditor</div>
-                    <div class="data-value">👤 <?= esc($rtl['auditor_name']) ?></div>
-                </div>
+                    <?php if (!empty($rtl['closed_at'])): ?>
+                        <div class="data-row">
+                            <div class="data-label">Tanggal Ditutup</div>
+                            <div class="data-value success">✅ <?= esc($rtl['closed_at']) ?></div>
+                        </div>
+                    <?php endif; ?>
 
-                <div class="data-row">
-                    <div class="data-label">Periode</div>
-                    <div class="data-value">📆 <?= esc($rtl['periode']) ?></div>
+                    <div class="data-row">
+                        <div class="data-label">Auditor</div>
+                        <div class="data-value">👤 <?= esc($rtl['auditor_name']) ?></div>
+                    </div>
+
+                    <div class="data-row">
+                        <div class="data-label">Periode</div>
+                        <div class="data-value">📆 <?= esc($rtl['periode']) ?></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Modal Preview Bukti (sama seperti di detail LHA) -->
+<div class="modal fade" id="evidenceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="evidenceModalTitle">Preview Bukti</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" alt="" id="evidenceModalImg" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showEvidenceModal(url, filename) {
+        document.getElementById('evidenceModalTitle').textContent = filename;
+        document.getElementById('evidenceModalImg').src = url;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('evidenceModal')).show();
+    }
+
+    // Satu handler untuk semua thumbnail / tombol Preview (gambar)
+    document.addEventListener('click', function(e) {
+        var trigger = e.target.closest('[data-evidence-url]');
+        if (!trigger) return;
+        e.preventDefault();
+        showEvidenceModal(trigger.getAttribute('data-evidence-url'), trigger.getAttribute('data-evidence-name') || 'Preview Bukti');
+    });
+
+    // Kosongkan gambar saat modal ditutup agar tidak muncul sekilas bukti sebelumnya
+    document.getElementById('evidenceModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('evidenceModalImg').src = '';
+    });
+</script>
 
 <?= $this->endSection() ?>
