@@ -57,6 +57,10 @@ class CompletedAuditsController extends BaseController
 
         $db = \Config\Database::connect();
 
+        $db->table('audits')
+            ->where('id', $id)
+            ->update(['admin_viewed_at' => date('Y-m-d H:i:s')]);
+
         $audit = $db->table('audits a')
             ->select('a.*, p.nama_periode, auditor.fullname as auditor_name, auditee.fullname as auditee_name')
             ->join('periodes p', 'p.id = a.periode_id', 'left')
@@ -93,7 +97,7 @@ class CompletedAuditsController extends BaseController
         ]);
     }
 
-        // Method khusus untuk mencatat log sebelum cetak
+    // Method khusus untuk mencatat log sebelum cetak
     public function logExport(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'admin') {
@@ -106,7 +110,7 @@ class CompletedAuditsController extends BaseController
         if ($audit) {
             // Catat ke activity_logs
             log_activity('EXPORT', 'audits', 'Mencetak laporan PDF audit "' . $audit->title . '" (Status: Selesai)');
-            
+
             return $this->response->setJSON(['status' => 'success']);
         }
 

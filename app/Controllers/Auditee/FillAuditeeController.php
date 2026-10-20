@@ -187,7 +187,7 @@ class FillAuditeeController extends BaseController
 
 
     // Halaman daftar revisi untuk auditee
-    public function revisi(int $id)
+        public function revisi(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
@@ -205,41 +205,27 @@ class FillAuditeeController extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        /*
-         * HANYA temuan yang RTL-nya sudah di-APPROVE auditor
-         * (status In_Progress) yang masuk halaman revisi.
-         *
-         * Temuan Open:
-         * - RTL ditolak / belum direview
-         * - ditangani melalui halaman RTL
-         * - tidak masuk halaman revisi
-         */
-        $temuans = $db->table('temuans')
-            ->select(
-                'temuans.*, 
-                 aq.clause_code, 
-                 aq.question_text, 
-                 aqa.id as assignment_id, 
-                 aqa.answer, 
-                 aqa.evidence_filename'
-            )
-            ->join(
-                'audit_questions as aq',
-                'aq.id = temuans.question_id',
-                'left'
-            )
-            ->join(
-                'audit_question_assignments as aqa',
-                'aqa.audit_id = temuans.audit_id 
-                 AND aqa.question_id = temuans.question_id',
-                'left'
-            )
-            ->where('temuans.audit_id', $id)
-            ->where('temuans.status', 'In_Progress')
-            ->orderBy('temuans.created_at', 'ASC')
+        // PERBAIKAN QUERY: Ambil data langsung dari audit_question_assignments
+        // dengan kondisi yang lebih spesifik
+        $temuans = $db->table('temuans t')
+            ->select('t.*, 
+                     aq.clause_code, 
+                     aq.question_text, 
+                     aqa.id as assignment_id, 
+                     aqa.answer, 
+                     aqa.evidence_filename, 
+                     aqa.evidence_uploaded_at,
+                     aqa.evidence_file')
+            ->join('audit_questions as aq', 'aq.id = t.question_id', 'left')
+            ->join('audit_question_assignments as aqa', 'aqa.question_id = t.question_id AND aqa.audit_id = t.audit_id', 'left')
+            ->where('t.audit_id', $id)
+            ->where('t.status', 'In_Progress')
+            ->orderBy('t.created_at', 'ASC')
             ->get()
             ->getResult();
 
+        // HAPUS KODE DEBUG (echo dan die) yang sebelumnya ditambahkan
+        // return view langsung
         return view('auditee/revisi', [
             'title' => 'Revisi Jawaban - Sistem Audit IT POLBAN',
             'page_title' => 'Revisi Jawaban',
@@ -249,9 +235,7 @@ class FillAuditeeController extends BaseController
     }
 
 
-    // Simpan revisi jawaban + bukti baru
-    // Kirim revisi jawaban ke Auditor
-    public function saveRevisi(int $id)
+        public function saveRevisi(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
@@ -260,7 +244,6 @@ class FillAuditeeController extends BaseController
         $db = \Config\Database::connect();
         $userId = session()->get('id');
 
-        // Validasi kepemilikan audit
         $audit = $db->table('audits')
             ->where('id', $id)
             ->where('auditee_id', $userId)
@@ -271,52 +254,52 @@ class FillAuditeeController extends BaseController
         }
 
         $answers = $this->request->getPost('answers') ?? [];
-        $uploadedNames = [];
+        $logMessages = [];
 
         // 1. Simpan jawaban revisi (Teks)
         foreach ($answers as $assignmentId => $answerText) {
             $db->table('audit_question_assignments')
                 ->where('id', $assignmentId)
                 ->where('audit_id', $id)
-                ->update([
-                    'answer' => $answerText
-                ]);
+                ->update(['answer' => $answerText]);
+            
+            $logMessages[] = "Jawaban disimpan untuk Assignment ID: $assignmentId";
         }
 
-        // 2. Simpan bukti baru (jika ada) + catat berkas yang ditolak
+        // 2. Proses File Upload
         $files = $this->request->getFiles();
-
+        
         if (isset($files['evidence']) && is_array($files['evidence'])) {
             foreach ($files['evidence'] as $assignmentId => $file) {
-
-                if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile))
+                
+                if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile)) {
+                    $logMessages[] = "File untuk ID $assignmentId bukan instance UploadedFile";
                     continue;
-                if ($file->getError() === UPLOAD_ERR_NO_FILE)
+                }
+                
+                if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+                    $logMessages[] = "Tidak ada file yang dipilih untuk ID $assignmentId";
                     continue;
+                }
 
                 $nama = $file->getClientName();
                 $ukuranMB = round($file->getSize() / 1024 / 1024, 1);
 
-                // ✅ BATAS KERAS 5 MB
                 if ($file->getSize() > 5 * 1024 * 1024) {
-                    $skipped[] = $nama . ' (' . $ukuranMB . ' MB) — melebihi batas maksimal 5 MB';
-                    continue;
-                }
-
-                if (!$file->isValid() || $file->hasMoved()) {
-                    $skipped[] = $nama . ' — gagal diupload (error server/limit PHP)';
+                    $logMessages[] = "File '$nama' ($ukuranMB MB) melebihi 5 MB";
                     continue;
                 }
 
                 $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
                 if (!in_array(strtolower($file->getClientExtension()), $allowed)) {
-                    $skipped[] = $nama . ' — format tidak didukung';
+                    $logMessages[] = "Format file '$nama' tidak didukung";
                     continue;
                 }
 
+                // Baca konten file untuk disimpan ke database (BLOB)
                 $content = file_get_contents($file->getTempName());
-                $diskName = $file->getRandomName();
-
+                
+                // Update database
                 $db->table('audit_question_assignments')
                     ->where('id', $assignmentId)
                     ->where('audit_id', $id)
@@ -325,38 +308,69 @@ class FillAuditeeController extends BaseController
                         'evidence_filename' => $nama,
                         'evidence_uploaded_at' => date('Y-m-d H:i:s')
                     ]);
-
-                $folder = FCPATH . 'uploads/bukti_perbaikan';
-                if (!is_dir($folder)) {
-                    mkdir($folder, 0777, true);
+                
+                $affectedRows = $db->affectedRows();
+                
+                if ($affectedRows > 0) {
+                    $logMessages[] = "BERHASIL: File '$nama' disimpan ke DB. Baris terupdate: $affectedRows";
+                    
+                    // ✅ PERBAIKAN KRUSIAL: JANGAN GUNAKAN getRandomName()
+                    // Buat nama file secara manual agar tidak memicu error finfo_file
+                    $originalName = pathinfo($nama, PATHINFO_FILENAME);
+                    $ext = $file->getClientExtension();
+                    $timestamp = time();
+                    
+                    // Sanitasi nama file: ganti spasi & karakter khusus dengan underscore
+                    $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $originalName) . '_' . $timestamp . '.' . $ext;
+                    
+                    // Simpan ke folder fisik
+                    $folder = FCPATH . 'uploads/bukti_perbaikan';
+                    if (!is_dir($folder)) {
+                        mkdir($folder, 0777, true);
+                    }
+                    
+                    // Pindahkan file LANGSUNG dengan nama yang sudah kita tentukan
+                    if ($file->move($folder, $safeName)) {
+                        $logMessages[] = "File fisik disimpan sebagai: $safeName";
+                    } else {
+                        $logMessages[] = "GAGAL menyimpan file fisik. Error: " . $file->getErrorString();
+                    }
+                    
+                    // Update juga tabel temuans agar sinkron dengan nama file yang sebenarnya ada di folder
+                    $assignment = $db->table('audit_question_assignments')
+                        ->where('id', $assignmentId)
+                        ->get()->getRow();
+                    
+                    if ($assignment) {
+                        $db->table('temuans')
+                            ->where('audit_id', $id)
+                            ->where('question_id', $assignment->question_id)
+                            ->update([
+                                'bukti_perbaikan' => $safeName,
+                                'revisi_sent_at' => date('Y-m-d H:i:s'),
+                                'updated_at' => date('Y-m-d H:i:s')
+                            ]);
+                        $logMessages[] = "File disinkronkan ke tabel temuans";
+                    }
+                } else {
+                    $logMessages[] = "GAGAL: Query UPDATE tidak menemukan data! Assignment ID: $assignmentId, Audit ID: $id";
                 }
-                file_put_contents($folder . DIRECTORY_SEPARATOR . $diskName, $content);
-
-                $uploadedNames[$assignmentId] = $diskName;
             }
+        } else {
+            $logMessages[] = "Variabel 'evidence' tidak ditemukan di request";
         }
 
-        // ✅ Peringatan kuning tampil setelah redirect
-        if (!empty($skipped)) {
-            session()->setFlashdata(
-                'warning',
-                'PERHATIAN: Berkas berikut TIDAK ikut tersimpan → ' . implode('; ', $skipped) .
-                '. Silakan kompres atau bungkus menjadi ZIP (maks 5 MB) lalu unggah ulang.'
-            );
-        }
+        // TULIS LOG KE FILE (Untuk debugging jika masih ada masalah)
+        $logFile = WRITEPATH . 'logs/revisi_upload_' . date('Y-m-d') . '.log';
+        $logContent = "\n\n=== REVISI AUDIT ID: $id ===\n";
+        $logContent .= "Time: " . date('Y-m-d H:i:s') . "\n";
+        $logContent .= "User: " . session()->get('username') . "\n";
+        $logContent .= implode("\n", $logMessages) . "\n";
+        file_put_contents($logFile, $logContent, FILE_APPEND);
 
-        // LOG AKTIVITAS: revisi + bukti dikirim ke auditor
-        log_aktivitas(
-            'Mengirim revisi jawaban & bukti perbaikan audit "' .
-            $audit->title .
-            '" (menunggu verifikasi auditor)',
-            'revisi'
-        );
+        log_aktivitas('Mengirim revisi jawaban & bukti perbaikan audit "' . $audit->title . '"', 'revisi');
 
         return redirect()->to('/auditee/dashboard')
-            ->with(
-                'success',
-                'Revisi berhasil dikirim ke auditor. Silakan tunggu verifikasi.'
-            );
+            ->with('success', 'Revisi berhasil dikirim ke auditor.');
     }
 }

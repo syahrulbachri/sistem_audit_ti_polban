@@ -75,7 +75,7 @@ class MonitoringTemuanController extends BaseController
         ]);
     }
 
-    public function detail(int $id)
+        public function detail(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditor') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
@@ -84,16 +84,20 @@ class MonitoringTemuanController extends BaseController
         $db = \Config\Database::connect();
         $auditorId = session()->get('id');
 
+        // PERBAIKAN: Menambahkan JOIN ke audit_question_assignments untuk mengambil jawaban_revisi
         $finding = $db->table('temuans')
             ->select('temuans.*, 
                                 aq.clause_code, aq.question_text, 
                                 a.title as audit_title, a.framework, 
                                 p.nama_periode, 
-                                u.fullname as auditee_name')
+                                u.fullname as auditee_name,
+                                aqa.answer as jawaban_revisi, 
+                                aqa.evidence_filename as file_revisi')
             ->join('audit_questions as aq', 'aq.id = temuans.question_id', 'left')
             ->join('audits as a', 'a.id = temuans.audit_id', 'left')
             ->join('periodes as p', 'p.id = a.periode_id', 'left')
             ->join('users as u', 'u.id = a.auditee_id', 'left')
+            ->join('audit_question_assignments as aqa', 'aqa.question_id = temuans.question_id AND aqa.audit_id = temuans.audit_id', 'left')
             ->where('temuans.id', $id)
             ->where('a.created_by_auditor', $auditorId)
             ->get()

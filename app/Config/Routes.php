@@ -108,3 +108,118 @@ $routes->group('pimpinan', function ($routes) {
     $routes->get('rtl/download-jawaban/(:num)', 'Pimpinan\RtlController::downloadJawaban/$1');
     $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
 });
+// Auditee - Tindak Lanjut Temuan (RTL & Bukti)
+$routes->get('/auditee/rtl/(:num)', 'Auditee\TindakLanjutController::rtl/$1');
+$routes->post('/auditee/rtl/save/(:num)', 'Auditee\TindakLanjutController::saveRtl/$1');
+$routes->get('/auditee/bukti/(:num)', 'Auditee\TindakLanjutController::bukti/$1');
+$routes->post('/auditee/bukti/save/(:num)', 'Auditee\TindakLanjutController::saveBukti/$1');
+
+// Auditor: minta revisi jawaban auditee
+$routes->post('/audit/minta-revisi/(:num)', 'Auditor\DashboardAuditorController::mintaRevisi/$1');
+
+// Auditee - RTL (Rencana Tindak Lanjut)
+$routes->get('/auditee/rtl/(:num)', 'Auditee\RtlAuditeeController::index/$1');
+$routes->post('/auditee/rtl/submit/(:num)', 'Auditee\RtlAuditeeController::submit/$1');
+
+// Auditee - Tindak Lanjut Temuan (RTL & Bukti)
+$routes->get('/auditee/rtl/(:num)', 'Auditee\TindakLanjutController::rtl/$1');
+$routes->post('/auditee/rtl/save/(:num)', 'Auditee\TindakLanjutController::saveRtl/$1');
+$routes->get('/auditee/bukti/(:num)', 'Auditee\TindakLanjutController::bukti/$1');
+$routes->post('/auditee/bukti/save/(:num)', 'Auditee\TindakLanjutController::saveBukti/$1');
+
+$routes->get('/auditee/log-aktivitas', 'Auditee\DashboardAuditeeController::logAktivitas');
+
+// pimpinan
+$routes->get('/pimpinan/dashboard', 'Pimpinan\DashboardPimpinanController::index');
+
+// ===== ROUTE PIMPINAN =====
+$routes->group('pimpinan', function ($routes) {
+    $routes->get('dashboard', 'Pimpinan\DashboardPimpinanController::index');
+    $routes->get('profile', 'Pimpinan\PimpinanProfileController::index');
+    $routes->get('profile/edit', 'Pimpinan\PimpinanProfileController::edit');
+    $routes->post('profile/update-identity', 'Pimpinan\PimpinanProfileController::updateIdentity');
+    $routes->post('profile/update', 'Pimpinan\PimpinanProfileController::update');
+    $routes->get('lha', 'Pimpinan\LhaController::index');
+    $routes->get('lha/review/(:segment)', 'Pimpinan\LhaController::review/$1');
+    $routes->get('lha/detail/(:segment)', 'Pimpinan\LhaController::detail/$1');
+    $routes->post('lha/decide/(:segment)', 'Pimpinan\LhaController::decide/$1');
+    $routes->get('rtl', 'Pimpinan\RtlController::index');
+    $routes->get('rtl/detail/(:segment)', 'Pimpinan\RtlController::detail/$1');
+    $routes->get('arsip', 'Pimpinan\ArsipController::index');
+
+    // Route untuk preview & download bukti perbaikan RTL (Pimpinan)
+    // PERBAIKAN: route ini ada DI DALAM group('pimpinan'), jadi jangan tulis prefix
+    // 'pimpinan/' lagi — sebelumnya URL-nya jadi /pimpinan/pimpinan/rtl/...
+    $routes->get('rtl/view-bukti/(:num)', 'Pimpinan\RtlController::viewBukti/$1');
+    $routes->get('rtl/download-bukti/(:num)', 'Pimpinan\RtlController::downloadBukti/$1');
+
+    // Route Log Aktivitas Pimpinan
+    $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
+});
+
+// Route untuk akses file bukti perbaikan - PERBAIKAN FINAL
+// Route ini akan mencari file berdasarkan nama asli di database, 
+// lalu menyajikan file dengan nama acak yang ada di folder
+// Route untuk akses file bukti perbaikan - PERBAIKAN FINAL
+// Route ini akan mencari file berdasarkan nama asli di database, 
+// lalu menyajikan file dengan nama acak yang ada di folder
+$routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
+    // Decode filename (untuk handle spasi dan karakter khusus)
+    $filename = urldecode($filename);
+
+    $db = \Config\Database::connect();
+
+    // LANGKAH 1: Cari di tabel audit_question_assignments (untuk file revisi)
+    $fileData = $db->table('audit_question_assignments')
+        ->select('evidence_file, evidence_filename')
+        ->where('evidence_filename', $filename)
+        ->get()->getRow();
+
+    // LANGKAH 2: Jika tidak ada di assignments, cari di folder dengan nama asli
+    if (!$fileData) {
+        $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
+        if (file_exists($filePath)) {
+            $mimeType = mime_content_type($filePath);
+            header('Content-Type: ' . $mimeType);
+            header('Content-Disposition: inline; filename="' . $filename . '"');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
+        }
+    }
+
+    // LANGKAH 3: Jika ada di database sebagai BLOB, serve langsung dari database
+    if ($fileData && !empty($fileData->evidence_file)) {
+        $mimeType = mime_content_type($fileData->evidence_filename);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . $fileData->evidence_filename . '"');
+        header('Content-Length: ' . strlen($fileData->evidence_file));
+        echo $fileData->evidence_file;
+        exit;
+    }
+
+    // LANGKAH 4: Cari di folder uploads dengan pattern matching (nama acak)
+    // Karena file disimpan dengan getRandomName(), kita cari file yang mungkin cocok
+    $folder = FCPATH . 'uploads/bukti_perbaikan/';
+    $files = glob($folder . '*');
+
+    // Cari file berdasarkan ekstensi yang sama dan ukuran terdekat
+    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $matchingFiles = array_filter($files, function ($f) use ($ext) {
+        return strtolower(pathinfo($f, PATHINFO_EXTENSION)) === $ext;
+    });
+
+    // Jika hanya ada 1 file dengan ekstensi tersebut, gunakan itu
+    if (count($matchingFiles) === 1) {
+        $filePath = array_values($matchingFiles)[0];
+        $mimeType = mime_content_type($filePath);
+        header('Content-Type: ' . $mimeType);
+        header('Content-Disposition: inline; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($filePath));
+        readfile($filePath);
+        exit;
+    }
+
+    // File tidak ditemukan sama sekali - PERBAIKAN: Gunakan Exception resmi CI4
+    throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+});
