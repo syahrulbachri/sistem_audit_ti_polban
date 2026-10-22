@@ -253,6 +253,40 @@ class RtlController extends BaseController
         $buktiUrl         = !empty($buktiFilename) ? site_url('pimpinan/rtl/view-bukti/' . $rtl['id']) : null;
         $buktiDownloadUrl = !empty($buktiFilename) ? site_url('pimpinan/rtl/download-bukti/' . $rtl['id']) : null;
 
+        // ==========================================================
+        // JAWABAN, BUKTI & CATATAN PENILAIAN (dari proses audit sebelumnya)
+        // ==========================================================
+        // BLOB evidence_file TIDAK ikut di-select (berat); cukup LENGTH()-nya
+        // untuk mengetahui apakah auditee benar-benar mengunggah file.
+        $jawaban = $db->table('audit_question_assignments')
+            ->select('id, answer, answered_at, evidence_filename, evidence_uploaded_at, note, LENGTH(evidence_file) AS evidence_size', false)
+            ->where('audit_id', $rtl['audit_id'])
+            ->where('question_id', $rtl['question_id'])
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray() ?: [];
+
+        $jawabanAuditee   = trim((string) ($jawaban['answer'] ?? ''));
+        $catatanPenilaian = trim((string) ($jawaban['note'] ?? ''));
+
+        $jawabanBukti = null;
+        $evFilename   = trim((string) ($jawaban['evidence_filename'] ?? ''));
+        $evSize       = (int) ($jawaban['evidence_size'] ?? 0);
+        if ($evFilename !== '' && $evSize > 0) {
+            $evExt = strtolower(pathinfo($evFilename, PATHINFO_EXTENSION));
+            $jawabanBukti = [
+                'filename'     => $evFilename,
+                'ext'          => $evExt,
+                'is_image'     => in_array($evExt, ['jpg', 'jpeg', 'png', 'gif'], true),
+                'size_label'   => $this->formatBytes($evSize),
+                'uploaded_at'  => !empty($jawaban['evidence_uploaded_at'])
+                    ? date('d M Y H:i', strtotime($jawaban['evidence_uploaded_at']))
+                    : null,
+                'view_url'     => site_url('pimpinan/rtl/view-jawaban/' . $rtl['id']),
+                'download_url' => site_url('pimpinan/rtl/download-jawaban/' . $rtl['id']),
+            ];
+        }
+
         // Hitung status deadline
         $deadlineStatus = '';
         $deadlineClass = '';
@@ -301,8 +335,11 @@ class RtlController extends BaseController
             'lha_nama'              => (string) ($rtl['audit_title'] ?? '-'),
             'unit'                  => (string) ($rtl['auditee_name'] ?? '-'),
             'sistem'                => (string) ($rtl['framework'] ?? '-'),
-            'deskripsi'             => (string) ($rtl['deskripsi_temuan'] ?? '-'),
-            'rekomendasi'           => (string) ($rtl['rekomendasi'] ?? '-'),
+            'deskripsi'             => trim((string) ($rtl['deskripsi_temuan'] ?? '')),
+            'rekomendasi'           => trim((string) ($rtl['rekomendasi'] ?? '')),
+            'jawaban_auditee'       => $jawabanAuditee,
+            'jawaban_bukti'         => $jawabanBukti,
+            'catatan_penilaian'     => $catatanPenilaian,
             'rtl_description'       => (string) ($rtl['rtl_description'] ?? ''),
             'rtl_anggaran'          => (float) ($rtl['rtl_anggaran'] ?? 0),
             'rtl_deadline'          => $rtl['rtl_deadline'] ? date('d M Y', strtotime($rtl['rtl_deadline'])) : '-',
@@ -347,6 +384,81 @@ class RtlController extends BaseController
     public function downloadBukti(int $temuanId)
     {
         return $this->serveBukti($temuanId, 'attachment');
+    }
+
+    // ==========================================================
+    // PREVIEW / DOWNLOAD BUKTI YANG DIKIRIM AUDITEE SAAT MENJAWAB
+    // (URL memakai ID temuan, bukan ID assignment)
+    // ==========================================================
+    public function viewJawaban(int $temuanId)
+    {
+        return $this->serveJawabanEvidence($temuanId, 'inline');
+    }
+
+    public function downloadJawaban(int $temuanId)
+    {
+        return $this->serveJawabanEvidence($temuanId, 'attachment');
+    }
+
+    private function serveJawabanEvidence(int $temuanId, string $disposition)
+    {
+        if (!session()->get('logged_in')) {
+            return redirect()->to('/')->with('error', 'Silakan login terlebih dahulu.');
+        }
+        if (session()->get('role') !== 'pimpinan') {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $db = Database::connect();
+
+        $temuan = $db->table('temuans')
+            ->select('id, audit_id, question_id')
+            ->where('id', $temuanId)
+            ->get()
+            ->getRowArray();
+
+        if (!$temuan) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $row = $db->table('audit_question_assignments')
+            ->select('evidence_file, evidence_filename')
+            ->where('audit_id', $temuan['audit_id'])
+            ->where('question_id', $temuan['question_id'])
+            ->where('evidence_file IS NOT NULL')
+            ->orderBy('id', 'DESC')
+            ->get()
+            ->getRowArray();
+
+        if (!$row || $row['evidence_file'] === '' || $row['evidence_file'] === null) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound(
+                'Auditee tidak mengunggah bukti untuk pertanyaan ini.'
+            );
+        }
+
+        $content  = (string) $row['evidence_file'];
+        $realName = !empty($row['evidence_filename']) ? basename($row['evidence_filename']) : 'bukti-jawaban';
+
+        if ($disposition === 'attachment') {
+            return $this->response->download($realName, $content, true);
+        }
+
+        return $this->response
+            ->setHeader('Content-Type', $this->guessMime($realName, $content))
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setHeader('Content-Disposition', 'inline; filename="' . str_replace('"', '', $realName) . '"')
+            ->setBody($content);
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . ' MB';
+        }
+        if ($bytes >= 1024) {
+            return round($bytes / 1024) . ' KB';
+        }
+        return $bytes . ' B';
     }
 
     /**

@@ -51,7 +51,7 @@ $routes->get('/admin/planning/edit/(:num)', 'Admin\PlanningController::edit/$1')
 $routes->post('/admin/planning/update/(:num)', 'Admin\PlanningController::update/$1');
 $routes->get('/admin/planning/delete/(:num)', 'Admin\PlanningController::delete/$1');
 $routes->get('/admin/planning/detail/(:num)', 'Admin\PlanningController::detail/$1');
-$routes->post('/admin/planning/perpanjang-deadline', 'Admin\PlanningController::perpanjangDeadline'); // ← TAMBAHKAN INI
+$routes->post('/admin/planning/perpanjang-deadline', 'Admin\PlanningController::perpanjangDeadline');
 // Monitoring Temuan (Admin)
 $routes->get('/admin/findings', 'Admin\FindingsController::index');
 $routes->get('/admin/findings/detail/(:num)', 'Admin\FindingsController::detail/$1');
@@ -63,8 +63,6 @@ $routes->get('/admin/completed-audits/log-export/(:num)', 'Admin\CompletedAudits
 $routes->get('/admin/activity-logs', 'Admin\ActivityLogController::index');
 $routes->get('/admin/activity-logs/delete/(:num)', 'Admin\ActivityLogController::delete/$1');
 $routes->get('/admin/activity-logs/clear-old', 'Admin\ActivityLogController::clearOld');
-
-
 
 // Auditor Routes
 $routes->get('/dashboard', '\App\Controllers\Auditor\DashboardAuditorController::index');
@@ -88,14 +86,28 @@ $routes->get('/auditee/daftar-audit', 'Auditee\DashboardAuditeeController::dafta
 $routes->get('/auditee/riwayat', 'Auditee\DashboardAuditeeController::riwayat');
 $routes->get('/auditee/fill/(:num)', 'Auditee\FillAuditeeController::fill/$1');
 $routes->post('/auditee/save-answer/(:num)', 'Auditee\FillAuditeeController::saveAnswer/$1');
-$routes->get('/auditee/revisi/(:num)', 'Auditee\FillAuditeeController::revisi/$1');
-$routes->post('/auditee/revisi/save/(:num)', 'Auditee\FillAuditeeController::saveRevisi/$1');
-// Auditor: minta revisi jawaban auditee
-$routes->post('/audit/minta-revisi/(:num)', 'Auditor\DashboardAuditorController::mintaRevisi/$1');
-// Auditee - RTL (Rencana Tindak Lanjut)
-$routes->get('/auditee/rtl/(:num)', 'Auditee\RtlAuditeeController::index/$1');
-$routes->post('/auditee/rtl/submit/(:num)', 'Auditee\RtlAuditeeController::submit/$1');
 
+// Route untuk akses file bukti perbaikan
+$routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
+    $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
+    if (file_exists($filePath)) {
+        return $this->response->download($filePath, true);
+    }
+    throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+});
+
+// ===== ROUTE PIMPINAN =====
+$routes->group('pimpinan', function ($routes) {
+    $routes->get('dashboard', 'Pimpinan\DashboardPimpinanController::index');
+    $routes->get('daftar_lha', 'Pimpinan\MonitoringLHAController::index');
+    $routes->get('lha_detail/(:num)', 'Pimpinan\MonitoringLHAController::detail/$1');
+    $routes->get('lha/download-evidence/(:num)', 'Pimpinan\LhaController::downloadEvidence/$1');
+    $routes->get('rtl/view-bukti/(:num)', 'Pimpinan\RtlController::viewBukti/$1');
+    $routes->get('rtl/download-bukti/(:num)', 'Pimpinan\RtlController::downloadBukti/$1');
+    $routes->get('rtl/view-jawaban/(:num)', 'Pimpinan\RtlController::viewJawaban/$1');
+    $routes->get('rtl/download-jawaban/(:num)', 'Pimpinan\RtlController::downloadJawaban/$1');
+    $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
+});
 // Auditee - Tindak Lanjut Temuan (RTL & Bukti)
 $routes->get('/auditee/rtl/(:num)', 'Auditee\TindakLanjutController::rtl/$1');
 $routes->post('/auditee/rtl/save/(:num)', 'Auditee\TindakLanjutController::saveRtl/$1');
@@ -148,18 +160,21 @@ $routes->group('pimpinan', function ($routes) {
 // Route untuk akses file bukti perbaikan - PERBAIKAN FINAL
 // Route ini akan mencari file berdasarkan nama asli di database, 
 // lalu menyajikan file dengan nama acak yang ada di folder
-$routes->get('uploads/bukti_perbaikan/(:any)', function($filename) {
+// Route untuk akses file bukti perbaikan - PERBAIKAN FINAL
+// Route ini akan mencari file berdasarkan nama asli di database, 
+// lalu menyajikan file dengan nama acak yang ada di folder
+$routes->get('uploads/bukti_perbaikan/(:any)', function (string $filename) {
     // Decode filename (untuk handle spasi dan karakter khusus)
     $filename = urldecode($filename);
-    
+
     $db = \Config\Database::connect();
-    
+
     // LANGKAH 1: Cari di tabel audit_question_assignments (untuk file revisi)
     $fileData = $db->table('audit_question_assignments')
         ->select('evidence_file, evidence_filename')
         ->where('evidence_filename', $filename)
         ->get()->getRow();
-    
+
     // LANGKAH 2: Jika tidak ada di assignments, cari di folder dengan nama asli
     if (!$fileData) {
         $filePath = FCPATH . 'uploads/bukti_perbaikan/' . $filename;
@@ -172,7 +187,7 @@ $routes->get('uploads/bukti_perbaikan/(:any)', function($filename) {
             exit;
         }
     }
-    
+
     // LANGKAH 3: Jika ada di database sebagai BLOB, serve langsung dari database
     if ($fileData && !empty($fileData->evidence_file)) {
         $mimeType = mime_content_type($fileData->evidence_filename);
@@ -182,18 +197,18 @@ $routes->get('uploads/bukti_perbaikan/(:any)', function($filename) {
         echo $fileData->evidence_file;
         exit;
     }
-    
+
     // LANGKAH 4: Cari di folder uploads dengan pattern matching (nama acak)
     // Karena file disimpan dengan getRandomName(), kita cari file yang mungkin cocok
     $folder = FCPATH . 'uploads/bukti_perbaikan/';
     $files = glob($folder . '*');
-    
+
     // Cari file berdasarkan ekstensi yang sama dan ukuran terdekat
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-    $matchingFiles = array_filter($files, function($f) use ($ext) {
+    $matchingFiles = array_filter($files, function ($f) use ($ext) {
         return strtolower(pathinfo($f, PATHINFO_EXTENSION)) === $ext;
     });
-    
+
     // Jika hanya ada 1 file dengan ekstensi tersebut, gunakan itu
     if (count($matchingFiles) === 1) {
         $filePath = array_values($matchingFiles)[0];
@@ -204,7 +219,7 @@ $routes->get('uploads/bukti_perbaikan/(:any)', function($filename) {
         readfile($filePath);
         exit;
     }
-    
-    // File tidak ditemukan sama sekali
-    show_404();
+
+    // File tidak ditemukan sama sekali - PERBAIKAN: Gunakan Exception resmi CI4
+    throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
 });

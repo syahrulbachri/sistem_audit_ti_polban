@@ -126,12 +126,39 @@
                 </div>
                 <div class="card-body p-0">
                     <?php if (!empty($assignedQuestions)): ?>
-                        <?php $no = 1;
+                        <?php
+                        $no = 1;
+                        // Warna badge tingkat kematangan (skala) per level
+                        $levelClass = [
+                            0 => 'bg-danger',
+                            1 => 'bg-warning text-dark',
+                            2 => 'bg-info text-dark',
+                            3 => 'bg-primary',
+                            4 => 'bg-success',
+                            5 => 'bg-success',
+                        ];
                         foreach ($assignedQuestions as $q):
-                            $isSesuai = ($q->score !== null && (float) $q->score > 0);
-                            $statusBadge = $isSesuai
-                                ? '<span class="badge bg-success rounded-pill"><i class="bi bi-check-circle me-1"></i>Sesuai</span>'
-                                : '<span class="badge bg-danger rounded-pill"><i class="bi bi-x-circle me-1"></i>Tidak Sesuai</span>';
+                            $hasScore = ($q->score !== null);
+                            $scoreVal = $hasScore ? (int) round((float) $q->score) : null;
+                            $opt      = ($hasScore && isset($frameworkOptions[$scoreVal])) ? $frameworkOptions[$scoreVal] : null;
+
+                            if (!$hasScore) {
+                                $statusBadge = '<span class="badge bg-secondary rounded-pill">Belum Dinilai</span>';
+                            } elseif ($isBinary) {
+                                $statusBadge = $scoreVal > 0
+                                    ? '<span class="badge bg-success rounded-pill"><i class="bi bi-check-circle me-1"></i>Sesuai</span>'
+                                    : '<span class="badge bg-danger rounded-pill"><i class="bi bi-x-circle me-1"></i>Tidak Sesuai</span>';
+                            } else {
+                                $cls = $levelClass[$scoreVal] ?? 'bg-secondary';
+                                $statusBadge = '<span class="badge ' . $cls . ' rounded-pill">Level ' . $scoreVal
+                                    . ($opt ? ' - ' . esc($opt->label) : '') . '</span>';
+                            }
+
+                            $ext     = strtolower(pathinfo((string) $q->evidence_filename, PATHINFO_EXTENSION));
+                            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif'], true);
+                            $isPdf   = ($ext === 'pdf');
+                            $viewUrl = '/pimpinan/lha/view-evidence/' . (int) $q->id;
+                            $dlUrl   = '/pimpinan/lha/download-evidence/' . (int) $q->id;
                         ?>
                             <div class="border-bottom p-4">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
@@ -143,22 +170,83 @@
                                 </div>
                                 <h6 class="fw-bold mb-3"><?= esc((string) ($q->question_text ?? '-')) ?></h6>
 
+                                <!-- Jawaban Auditee -->
                                 <div class="bg-light p-3 rounded">
                                     <small class="text-primary fw-bold"><i class="bi bi-reply me-1"></i>Jawaban Auditee:</small>
-                                    <p class="mb-0 mt-1"><?= esc((string) ($q->answer ?? '(Belum dijawab)')) ?></p>
+                                    <p class="mb-0 mt-1"><?= nl2br(esc((string) (($q->answer ?? '') !== '' ? $q->answer : '(Belum dijawab)'))) ?></p>
                                 </div>
 
+                                <!-- Bukti Auditee (jika ada) -->
                                 <?php if (!empty($q->evidence_filename)): ?>
+                                    <div class="lha-evidence-box mt-3">
+                                        <strong class="text-primary small"><i class="bi bi-paperclip me-1"></i>Bukti Pendukung:</strong>
+                                        <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
+                                            <?php if ($isImage): ?>
+                                                <img src="<?= $viewUrl ?>" alt="<?= esc((string) $q->evidence_filename) ?>"
+                                                    class="lha-evidence-thumb"
+                                                    onclick="showEvidenceModal('<?= $viewUrl ?>', '<?= esc((string) $q->evidence_filename, 'js') ?>')">
+                                            <?php elseif ($isPdf): ?>
+                                                <i class="bi bi-file-earmark-pdf text-danger fs-1"></i>
+                                            <?php else: ?>
+                                                <i class="bi bi-file-earmark text-primary fs-1"></i>
+                                            <?php endif; ?>
+
+                                            <div>
+                                                <div class="fw-semibold small"><?= esc((string) $q->evidence_filename) ?></div>
+                                                <?php if (!empty($q->evidence_uploaded_at)): ?>
+                                                    <small class="text-muted d-block mb-2">
+                                                        <i class="bi bi-clock me-1"></i>Diupload: <?= date('d M Y H:i', strtotime($q->evidence_uploaded_at)) ?>
+                                                    </small>
+                                                <?php endif; ?>
+                                                <div class="d-flex gap-2">
+                                                    <?php if ($isImage): ?>
+                                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                            onclick="showEvidenceModal('<?= $viewUrl ?>', '<?= esc((string) $q->evidence_filename, 'js') ?>')">
+                                                            <i class="bi bi-eye me-1"></i>Preview
+                                                        </button>
+                                                    <?php elseif ($isPdf): ?>
+                                                        <a href="<?= $viewUrl ?>" target="_blank" class="btn btn-sm btn-outline-primary">
+                                                            <i class="bi bi-eye me-1"></i>Lihat
+                                                        </a>
+                                                    <?php endif; ?>
+                                                    <a href="<?= $dlUrl ?>" class="btn btn-sm btn-outline-success">
+                                                        <i class="bi bi-download me-1"></i>Unduh
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
                                     <div class="mt-2">
-                                        <small class="text-muted"><i class="bi bi-paperclip me-1"></i>Bukti: <?= esc((string) $q->evidence_filename) ?></small>
+                                        <small class="text-muted fst-italic"><i class="bi bi-paperclip me-1"></i>Auditee tidak melampirkan bukti.</small>
                                     </div>
                                 <?php endif; ?>
 
-                                <?php if (!empty($q->note)): ?>
+                                <!-- Hasil Penilaian Auditor: Tingkat Kematangan + Catatan -->
+                                <div class="lha-auditor-box mt-3">
+                                    <strong class="small" style="color: var(--primary-navy, #273272);">
+                                        <i class="bi bi-clipboard-check me-1"></i>Penilaian Auditor
+                                    </strong>
+
                                     <div class="mt-2">
-                                        <small class="text-muted"><i class="bi bi-chat-left-text me-1"></i>Catatan: <?= esc((string) $q->note) ?></small>
+                                        <small class="text-muted d-block">
+                                            <?= $isBinary ? 'Hasil Penilaian' : 'Tingkat Kematangan' ?>
+                                        </small>
+                                        <?= $statusBadge ?>
+                                        <?php if ($opt && !empty($opt->description)): ?>
+                                            <small class="text-muted d-block mt-1"><?= esc((string) $opt->description) ?></small>
+                                        <?php endif; ?>
                                     </div>
-                                <?php endif; ?>
+
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block">Catatan Auditor</small>
+                                        <?php if (!empty($q->note)): ?>
+                                            <div><?= nl2br(esc((string) $q->note)) ?></div>
+                                        <?php else: ?>
+                                            <span class="text-muted fst-italic small">Tidak ada catatan.</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     <?php else: ?>
@@ -294,5 +382,59 @@
         </div>
     </div>
 </div>
+
+<style>
+    .lha-evidence-box {
+        background: #e7f3ff;
+        border: 1px dashed #0d6efd;
+        border-radius: 6px;
+        padding: 12px;
+    }
+
+    .lha-evidence-thumb {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 2px solid #dee2e6;
+        cursor: pointer;
+        transition: all .2s;
+    }
+
+    .lha-evidence-thumb:hover {
+        border-color: #0d6efd;
+        transform: scale(1.05);
+    }
+
+    .lha-auditor-box {
+        background: #f8f9ff;
+        border-left: 4px solid var(--primary-navy, #273272);
+        border-radius: 6px;
+        padding: 12px 14px;
+    }
+</style>
+
+<!-- Modal Preview Bukti -->
+<div class="modal fade" id="evidenceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="evidenceModalTitle">Preview Bukti</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" alt="" id="evidenceModalImg" class="img-fluid rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function showEvidenceModal(url, filename) {
+        document.getElementById('evidenceModalTitle').textContent = filename;
+        document.getElementById('evidenceModalImg').src = url;
+        new bootstrap.Modal(document.getElementById('evidenceModal')).show();
+    }
+</script>
 
 <?= $this->endSection() ?>

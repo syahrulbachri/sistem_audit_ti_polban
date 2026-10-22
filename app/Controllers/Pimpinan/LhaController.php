@@ -229,7 +229,9 @@ class LhaController extends BaseController
 
         // 2. Ambil daftar pertanyaan yang di-assign ke audit ini
         $assignedQuestions = $db->table('audit_question_assignments as aqa')
-            ->select('aqa.*, aq.clause_code, aq.question_text, aq.framework')
+            ->select('aqa.id, aqa.audit_id, aqa.question_id, aqa.answer, aqa.score, aqa.note,
+                      aqa.evidence_filename, aqa.evidence_uploaded_at,
+                      aq.clause_code, aq.question_text, aq.framework')
             ->join('audit_questions as aq', 'aq.id = aqa.question_id', 'left')
             ->where('aqa.audit_id', $id)
             ->orderBy('aq.clause_code', 'ASC')
@@ -252,6 +254,19 @@ class LhaController extends BaseController
         $fw = $db->table('frameworks')->where('nama', $audit->framework)->get()->getRow();
         $isBinary = $fw && isset($fw->scoring_type) && $fw->scoring_type === 'binary';
         $maxScore = $fw ? (int) ($fw->max_score ?? 1) : 1;
+
+        // Label tingkat kematangan / penilaian (framework_options), key = score_value
+        $frameworkOptions = [];
+        if ($fw) {
+            $opts = $db->table('framework_options')
+                ->where('framework_id', $fw->id)
+                ->orderBy('score_value', 'ASC')
+                ->get()
+                ->getResult();
+            foreach ($opts as $o) {
+                $frameworkOptions[(int) $o->score_value] = $o;
+            }
+        }
 
         $finalScorePercent = 0;
         if ($totalQuestions > 0) {
@@ -283,7 +298,69 @@ class LhaController extends BaseController
             'finalScorePercent' => $finalScorePercent,
             'isBinary'          => $isBinary,
             'maxScore'          => $maxScore,
+            'frameworkOptions'  => $frameworkOptions,
             'findings'          => $findings,
         ]);
+    }
+
+    // ==========================================================
+    // PREVIEW / DOWNLOAD BUKTI AUDITEE (khusus Pimpinan)
+    // ==========================================================
+    public function viewEvidence(int $id)
+    {
+        return $this->serveEvidence($id, false);
+    }
+
+    public function downloadEvidence(int $id)
+    {
+        return $this->serveEvidence($id, true);
+    }
+
+    private function serveEvidence(int $assignmentId, bool $download)
+    {
+        if (!session()->get('logged_in') || session()->get('role') !== 'pimpinan') {
+            return redirect()->to('/')->with('error', 'Akses ditolak.');
+        }
+
+        $db = Database::connect();
+
+        // Hanya bukti dari audit yang sudah selesai (LHA final) yang boleh dibuka pimpinan
+        $row = $db->table('audit_question_assignments as aqa')
+            ->select('aqa.evidence_file, aqa.evidence_filename')
+            ->join('audits as a', 'a.id = aqa.audit_id')
+            ->where('aqa.id', $assignmentId)
+            ->where('a.status', 'selesai')
+            ->get()
+            ->getRow();
+
+        if (!$row || empty($row->evidence_file)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
+
+        $filename = (string) $row->evidence_filename;
+        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        $mimeMap = [
+            'pdf'  => 'application/pdf',
+            'jpg'  => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png'  => 'image/png',
+            'doc'  => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'xls'  => 'application/vnd.ms-excel',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'zip'  => 'application/zip',
+        ];
+        $mime = $mimeMap[$ext] ?? 'application/octet-stream';
+
+        // Hanya gambar & PDF yang boleh tampil inline; selain itu selalu diunduh
+        $inlineOk    = in_array($ext, ['pdf', 'jpg', 'jpeg', 'png'], true);
+        $disposition = ($download || !$inlineOk) ? 'attachment' : 'inline';
+
+        return $this->response
+            ->setContentType($mime)
+            ->setHeader('Content-Disposition', $disposition . '; filename="' . addslashes($filename) . '"; filename*=UTF-8\'\'' . rawurlencode($filename))
+            ->setHeader('X-Content-Type-Options', 'nosniff')
+            ->setBody($row->evidence_file);
     }
 }
