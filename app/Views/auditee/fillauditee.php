@@ -14,7 +14,6 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
-<!-- ⬇️ TEMPEL BLOK INI (peringatan file ditolak) ⬇️ -->
 <?php if (session()->getFlashdata('warning')): ?>
     <div class="alert alert-warning alert-dismissible fade show">
         <i class="bi bi-exclamation-triangle-fill me-2"></i><?= session()->getFlashdata('warning') ?>
@@ -49,7 +48,8 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
 <?php else: ?>
     <div class="alert alert-info mb-4">
         <i class="bi bi-info-circle me-2"></i>
-        Isi jawaban dan upload bukti pendukung. Setelah klik <strong>"Kirim ke Auditor"</strong>, jawaban akan
+        Isi jawaban dan upload bukti pendukung (bisa pilih lebih dari satu file). Setelah klik <strong>"Kirim ke
+            Auditor"</strong>, jawaban akan
         <strong>terkunci</strong>.
     </div>
 <?php endif; ?>
@@ -80,19 +80,52 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
                 <textarea name="answers[<?= $q->id ?>]" class="form-control" rows="3"
                     placeholder="Tulis jawaban Anda di sini..." <?= $locked ? 'readonly' : '' ?>><?= esc($q->answer ?? '') ?></textarea>
 
-                <!-- Bukti Pendukung -->
+                <!-- Bukti Pendukung (Multi-Upload & JSON Support) -->
                 <div class="mt-3">
                     <?php if (!empty($q->evidence_filename)): ?>
-                        <div class="d-flex align-items-center gap-2 p-2 bg-light rounded border mb-2">
-                            <i class="bi bi-paperclip text-primary"></i>
-                            <small class="mb-0"><?= esc($q->evidence_filename) ?></small>
+                        <div class="mb-2">
+                            <small class="text-muted d-block mb-1"><i class="bi bi-paperclip me-1"></i>File Bukti
+                                Pendukung:</small>
+                            <?php
+                            // Mengubah string JSON dari database kembali menjadi array PHP
+                            $oldFiles = json_decode($q->evidence_filename, true);
+
+                            // Fallback jika format data lama masih berupa string biasa (bukan JSON)
+                            if (!is_array($oldFiles)) {
+                                $oldFiles = [$q->evidence_filename];
+                            }
+
+                            foreach ($oldFiles as $file):
+                                if (empty($file))
+                                    continue;
+                                ?>
+                                <div class="d-flex align-items-center justify-content-between p-2 bg-light rounded border mb-1">
+                                    <div class="d-flex align-items-center gap-2 text-truncate">
+                                        <i class="bi bi-file-earmark-text text-primary"></i>
+                                        <span class="text-truncate small mb-0" style="max-width: 250px;" title="<?= esc($file) ?>">
+                                            <?= esc($file) ?>
+                                        </span>
+                                    </div>
+                                    <!-- Tombol Download / Lihat File -->
+                                    <a href="<?= base_url('uploads/evidence/' . $file) ?>" target="_blank"
+                                        class="btn btn-sm btn-outline-primary py-0 px-2">
+                                        <i class="bi bi-eye me-1"></i>Lihat/Unduh
+                                    </a>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="mb-2">
+                            <span class="text-muted small fst-italic">Belum ada file bukti yang diunggah.</span>
                         </div>
                     <?php endif; ?>
+
                     <?php if (!$locked): ?>
-                        <input type="file" name="evidence[<?= $q->id ?>]" class="form-control"
-                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip">
-                        <small class="text-muted">PDF, JPG, PNG, DOC, XLS, ZIP (Maks 5MB). Upload file baru untuk mengganti
-                            bukti lama.</small>
+                        <!-- Input file dengan atribut multiple dan name array -->
+                        <input type="file" name="evidence[<?= $q->id ?>][]" class="form-control"
+                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip" multiple>
+                        <small class="text-muted">PDF, JPG, PNG, DOC, XLS, ZIP (Maks 5MB per file). Anda dapat memilih lebih
+                            dari satu file sekaligus untuk menambah atau mengganti bukti.</small>
                     <?php endif; ?>
                 </div>
             </div>
@@ -142,17 +175,24 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
             box._timer = setTimeout(function () { box.classList.add('d-none'); }, 10000);
         }
 
-        // 1) Cek begitu user memilih file
+        // 1) Cek begitu user memilih file (mendukung multiple files)
         document.querySelectorAll('input[type="file"]').forEach(function (inp) {
             inp.addEventListener('change', function () {
-                var f = inp.files[0];
-                if (f && f.size > MAX) {
-                    var mb = (f.size / 1024 / 1024).toFixed(1);
-                    inp.value = ''; // file langsung dibuang dari pilihan
+                let oversizedFiles = [];
+                for (let i = 0; i < inp.files.length; i++) {
+                    let f = inp.files[i];
+                    if (f.size > MAX) {
+                        let mb = (f.size / 1024 / 1024).toFixed(1);
+                        oversizedFiles.push(f.name + ' (' + mb + ' MB)');
+                    }
+                }
+
+                if (oversizedFiles.length > 0) {
+                    inp.value = ''; // Reset pilihan file jika ada yang melebihi batas
                     inp.classList.add('is-invalid');
                     setTimeout(function () { inp.classList.remove('is-invalid'); }, 5000);
-                    showWarning('File "' + f.name + '" berukuran ' + mb + ' MB — melebihi batas maksimal 5 MB, ' +
-                        'sehingga TIDAK diupload. Silakan kompres file atau bungkus menjadi ZIP terlebih dahulu.');
+                    showWarning('File berikut melebihi batas maksimal 5 MB: ' + oversizedFiles.join(', ') +
+                        '. Seluruh pilihan file pada input ini dibatalkan. Silakan kompres atau jadikan ZIP.');
                 }
             });
         });
@@ -162,8 +202,12 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
             form.addEventListener('submit', function (e) {
                 var bad = [];
                 form.querySelectorAll('input[type="file"]').forEach(function (inp) {
-                    var f = inp.files[0];
-                    if (f && f.size > MAX) bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                    for (let i = 0; i < inp.files.length; i++) {
+                        let f = inp.files[i];
+                        if (f.size > MAX) {
+                            bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                        }
+                    }
                 });
                 if (bad.length) {
                     e.preventDefault(); // batalkan pengiriman
