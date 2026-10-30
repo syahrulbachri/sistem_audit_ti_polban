@@ -2,38 +2,11 @@
 <?= $this->section('content') ?>
 
 <style>
-    .info-card {
-        border-radius: 12px;
-    }
-
-    .section-title {
-        font-size: 1.1rem;
-        font-weight: 700;
-        margin-bottom: 10px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #e5e7eb;
-    }
-
-    .rtl-box {
-        background: #f0fdf4;
-        border-left: 4px solid #22c55e;
-        border-radius: 8px;
-        padding: 15px;
-    }
-
-    .revisi-box {
-        background: #eff6ff;
-        border-left: 4px solid #3b82f6;
-        border-radius: 8px;
-        padding: 15px;
-    }
-
-    .verifikasi-box {
-        background: #fffbeb;
-        border-left: 4px solid #f59e0b;
-        border-radius: 8px;
-        padding: 20px;
-    }
+    .info-card { border-radius: 12px; }
+    .section-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; }
+    .rtl-box { background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 8px; padding: 15px; }
+    .revisi-box { background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 8px; padding: 15px; }
+    .verifikasi-box { background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 20px; }
 </style>
 
 <h4 class="fw-bold mb-4" style="color: var(--primary-navy);"><?= $page_title ?></h4>
@@ -52,33 +25,21 @@
             <div>
                 <?php
                 $riskBadge = match ($finding->tingkat_risiko) {
-                    'Rendah' => 'bg-success',
-                    'Sedang' => 'bg-warning text-dark',
-                    'Tinggi' => 'bg-danger',
-                    'Kritis' => 'bg-dark',
-                    default => 'bg-secondary'
+                    'Rendah' => 'bg-success', 'Sedang' => 'bg-warning text-dark', 'Tinggi' => 'bg-danger', 'Kritis' => 'bg-dark', default => 'bg-secondary'
                 };
                 $statusBadge = match ($finding->status) {
-                    'Open' => 'bg-primary',
-                    'In_Progress' => 'bg-info text-dark',
-                    'Closed' => 'bg-success',
-                    default => 'bg-secondary'
+                    'Open' => 'bg-primary', 'In_Progress' => 'bg-info text-dark', 'Closed' => 'bg-success', default => 'bg-secondary'
                 };
                 $fwBadge = ($finding->framework === 'ISO 27001') ? 'bg-success' : 'bg-info text-dark';
                 ?>
                 <h5 class="fw-bold mb-2">
-                    <code class="badge bg-secondary me-2"><?= esc($finding->clause_code ?? '-') ?></code>
-                    Temuan Audit
+                    <code class="badge bg-secondary me-2"><?= esc($finding->clause_code ?? '-') ?></code> Temuan Audit
                 </h5>
                 <span class="badge <?= $fwBadge ?> rounded-pill me-2"><?= esc($finding->framework ?? '-') ?></span>
                 <span class="badge <?= $riskBadge ?> rounded-pill me-2"><?= esc($finding->tingkat_risiko) ?></span>
-                <span class="badge <?= $statusBadge ?> rounded-pill px-3 py-2">
-                    Status: <?= str_replace('_', ' ', ucfirst($finding->status)) ?>
-                </span>
+                <span class="badge <?= $statusBadge ?> rounded-pill px-3 py-2">Status: <?= str_replace('_', ' ', ucfirst($finding->status)) ?></span>
             </div>
-            <a href="/auditor/monitoring-temuan" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-arrow-left me-1"></i>Kembali
-            </a>
+            <a href="/auditor/monitoring-temuan" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Kembali</a>
         </div>
 
         <div class="row g-3">
@@ -118,18 +79,14 @@
     </div>
 </div>
 
-<!-- ✅ BARU: Jawaban Revisi Auditee -->
+<!-- Jawaban Revisi Auditee -->
 <div class="card border-0 shadow-sm info-card mb-4">
     <div class="card-body p-4">
         <h6 class="section-title text-info"><i class="bi bi-pencil-square me-2"></i>Jawaban Revisi Auditee</h6>
         <?php if (!empty($finding->jawaban_revisi)): ?>
-            <div class="revisi-box">
-                <p class="mb-0"><?= nl2br(esc($finding->jawaban_revisi)) ?></p>
-            </div>
+            <div class="revisi-box"><p class="mb-0"><?= nl2br(esc($finding->jawaban_revisi)) ?></p></div>
         <?php else: ?>
-            <div class="alert alert-secondary mb-0">
-                <i class="bi bi-info-circle me-2"></i>Auditee belum memberikan jawaban revisi.
-            </div>
+            <div class="alert alert-secondary mb-0"><i class="bi bi-info-circle me-2"></i>Auditee belum memberikan jawaban revisi.</div>
         <?php endif; ?>
     </div>
 </div>
@@ -200,44 +157,56 @@
         </div>
     </div>
 
-    <!-- Form Verifikasi Bukti (Tahap 2) -->
+<!-- Form Verifikasi Bukti (Tahap 2) -->
 <?php elseif ($finding->status === 'In_Progress'): ?>
     <div class="card border-0 shadow-sm info-card mb-4">
         <div class="card-body p-4">
             <h6 class="section-title text-primary"><i class="bi bi-clipboard-check me-2"></i>Verifikasi Bukti</h6>
             <p class="text-muted small mb-3">Periksa bukti perbaikan yang diupload Auditee dan berikan catatan verifikasi Anda.</p>
 
-            <!-- AREA TAMPILAN BUKTI PERBAIKAN -->
-           
-<?php if(!empty($finding->bukti_perbaikan)): ?>
-    <?php 
-        $filename = $finding->bukti_perbaikan;
-        $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
-        
-        // PERBAIKAN: Gunakan base_url dengan urlencode untuk handle spasi
-        $fileUrl = base_url('uploads/bukti_perbaikan/' . urlencode($filename));
-    ?>
-    
-    <div class="mb-4">
-        <h6 class="fw-bold mb-2 text-primary"><i class="bi bi-paperclip me-2"></i>Bukti Perbaikan dari Auditee:</h6>
-        <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border">
-            <i class="bi <?= $isImage ? 'bi-image text-primary' : 'bi-file-earmark-text text-secondary' ?>" style="font-size: 2.5rem;"></i>
-            <div class="flex-grow-1">
-                <strong class="d-block"><?= esc($filename) ?></strong>
-                <small class="text-muted">File bukti yang diupload oleh Auditee</small>
-            </div>
-            <?php if($isImage): ?>
-                <button type="button" class="btn btn-primary btn-sm" onclick="previewImage('<?= $fileUrl ?>', '<?= esc($filename) ?>')">
-                    <i class="bi bi-eye me-1"></i>Lihat Preview
-                </button>
-            <?php else: ?>
-                <a href="<?= $fileUrl ?>" class="btn btn-primary btn-sm" download>
-                    <i class="bi bi-download me-1"></i>Download
-                </a>
-            <?php endif; ?>
-        </div>
-    </div>
+            <!-- AREA TAMPILAN BUKTI PERBAIKAN -->           
+            <?php if(!empty($finding->bukti_perbaikan)): ?>
+                <?php 
+                    $filename = $finding->bukti_perbaikan;
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                    $isPDF = ($ext === 'pdf');
+                    $fileUrl = base_url('uploads/bukti_perbaikan/' . urlencode($filename));
+                ?>
+                
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-2 text-primary"><i class="bi bi-paperclip me-2"></i>Bukti Perbaikan dari Auditee:</h6>
+                    <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border">
+                        <?php if($isImage): ?>
+                            <i class="bi bi-image text-primary" style="font-size: 2.5rem;"></i>
+                        <?php elseif($isPDF): ?>
+                            <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2.5rem;"></i>
+                        <?php else: ?>
+                            <i class="bi bi-file-earmark-text text-secondary" style="font-size: 2.5rem;"></i>
+                        <?php endif; ?>
+                        
+                        <div class="flex-grow-1">
+                            <strong class="d-block"><?= esc($filename) ?></strong>
+                            <small class="text-muted">File bukti yang diupload oleh Auditee</small>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <?php if($isImage): ?>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="previewImage('<?= $fileUrl ?>', '<?= esc($filename) ?>')">
+                                    <i class="bi bi-eye me-1"></i>Preview
+                                </button>
+                            <?php elseif($isPDF): ?>
+                                <a href="<?= $fileUrl ?>" target="_blank" class="btn btn-danger btn-sm">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>Lihat PDF
+                                </a>
+                            <?php else: ?>
+                                <a href="<?= $fileUrl ?>" class="btn btn-outline-secondary btn-sm" download>
+                                    <i class="bi bi-download me-1"></i>Download
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
             <?php else: ?>
                 <div class="alert alert-warning mb-4"><i class="bi bi-info-circle me-2"></i>Auditee belum mengupload bukti perbaikan.</div>
             <?php endif; ?>
@@ -257,64 +226,69 @@
         </div>
     </div>
 
-            <!-- Read Only (Status: Closed) -->
+<!-- Read Only (Status: Closed) -->
 <?php elseif ($finding->status === 'Closed'): ?>
-
-    <!-- Menampilkan Bukti Perbaikan -->
     <?php if(!empty($finding->bukti_perbaikan)): ?>
         <?php 
             $filename = $finding->bukti_perbaikan;
             $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
+            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+            $isPDF = ($ext === 'pdf');
             $fileUrl = base_url('uploads/bukti_perbaikan/' . urlencode($filename));
         ?>
         <div class="card border-0 shadow-sm info-card mb-4">
             <div class="card-body p-4">
                 <h6 class="section-title text-primary"><i class="bi bi-paperclip me-2"></i>Bukti Perbaikan (Selesai)</h6>
                 <div class="d-flex align-items-center gap-3 p-3 bg-light rounded border">
-                    <i class="bi <?= $isImage ? 'bi-image text-primary' : 'bi-file-earmark-text text-secondary' ?>" style="font-size: 2.5rem;"></i>
+                    <?php if($isImage): ?>
+                        <i class="bi bi-image text-primary" style="font-size: 2.5rem;"></i>
+                    <?php elseif($isPDF): ?>
+                        <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2.5rem;"></i>
+                    <?php else: ?>
+                        <i class="bi bi-file-earmark-text text-secondary" style="font-size: 2.5rem;"></i>
+                    <?php endif; ?>
+                    
                     <div class="flex-grow-1">
                         <strong class="d-block"><?= esc($filename) ?></strong>
                         <small class="text-muted">File bukti yang telah diverifikasi</small>
                     </div>
-                    <?php if($isImage): ?>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="previewImage('<?= $fileUrl ?>', '<?= esc($filename) ?>')">
-                            <i class="bi bi-eye me-1"></i>Lihat Preview
-                        </button>
-                    <?php else: ?>
-                        <a href="<?= $fileUrl ?>" class="btn btn-primary btn-sm" download>
-                            <i class="bi bi-download me-1"></i>Download
-                        </a>
-                    <?php endif; ?>
+                    
+                    <div class="d-flex gap-2">
+                        <?php if($isImage): ?>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="previewImage('<?= $fileUrl ?>', '<?= esc($filename) ?>')">
+                                <i class="bi bi-eye me-1"></i>Preview
+                            </button>
+                        <?php elseif($isPDF): ?>
+                            <a href="<?= $fileUrl ?>" target="_blank" class="btn btn-danger btn-sm">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>Lihat PDF
+                            </a>
+                        <?php else: ?>
+                            <a href="<?= $fileUrl ?>" class="btn btn-outline-secondary btn-sm" download>
+                                <i class="bi bi-download me-1"></i>Download
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
-        <!-- ✅ PERBAIKAN: Menggunakan 'auditor_note' sesuai nama kolom di database -->
-    <?php if (!empty($finding->auditor_note)): ?>
-    <div class="card border-0 shadow-sm info-card mb-4">
-        <div class="card-body p-4">
-            <h6 class="section-title text-primary">
-                <i class="bi bi-chat-left-text me-2"></i>Catatan Verifikasi Akhir (Auditor)
-            </h6>
-            <div class="revisi-box">
-                <!-- PENTING: esc() tetap dipakai agar payload XSS ditampilkan sebagai teks biasa (AMAN) -->
-                <p class="mb-0"><?= nl2br(esc($finding->auditor_note)) ?></p>
+        
+        <?php if (!empty($finding->auditor_note)): ?>
+        <div class="card border-0 shadow-sm info-card mb-4">
+            <div class="card-body p-4">
+                <h6 class="section-title text-primary"><i class="bi bi-chat-left-text me-2"></i>Catatan Verifikasi Akhir (Auditor)</h6>
+                <div class="revisi-box">
+                    <p class="mb-0"><?= nl2br(esc($finding->auditor_note)) ?></p>
+                </div>
+                <small class="text-muted mt-2 d-block"><i class="bi bi-clock me-1"></i>Ditutup pada: <?= date('d M Y H:i', strtotime($finding->closed_at ?? $finding->updated_at)) ?></small>
             </div>
-            <small class="text-muted mt-2 d-block">
-                <i class="bi bi-clock me-1"></i>Ditutup pada: <?= date('d M Y H:i', strtotime($finding->closed_at ?? $finding->updated_at)) ?>
-            </small>
         </div>
-    </div>
-    <?php endif; ?>
+        <?php endif; ?>
     <?php else: ?>
         <div class="alert alert-warning mb-4"><i class="bi bi-info-circle me-2"></i>Tidak ada bukti perbaikan yang tercatat.</div>
     <?php endif; ?>
-
 <?php endif; ?>
 
-<!-- ========================================== -->
 <!-- MODAL PREVIEW GAMBAR -->
-<!-- ========================================== -->
 <div class="modal fade" id="imagePreviewModal" tabindex="-1" aria-labelledby="imagePreviewModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -326,27 +300,19 @@
                 <img id="previewImageSrc" src="" alt="Preview Bukti" class="img-fluid" style="max-height: 70vh; border-radius: 8px;">
             </div>
             <div class="modal-footer">
-                <a id="downloadImageBtn" href="#" class="btn btn-primary" download>
-                    <i class="bi bi-download me-1"></i>Download Gambar Ini
-                </a>
+                <a id="downloadImageBtn" href="#" class="btn btn-primary" download><i class="bi bi-download me-1"></i>Download Gambar Ini</a>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- JavaScript untuk Preview Gambar -->
 <script>
     function previewImage(imageUrl, fileName) {
-        // Set source gambar dan judul modal
         document.getElementById('previewImageSrc').src = imageUrl;
         document.getElementById('imagePreviewModalLabel').innerText = fileName;
-
-        // Set link download di dalam modal
         document.getElementById('downloadImageBtn').href = imageUrl;
         document.getElementById('downloadImageBtn').download = fileName;
-
-        // Tampilkan modal Bootstrap
         var myModal = new bootstrap.Modal(document.getElementById('imagePreviewModal'));
         myModal.show();
     }
