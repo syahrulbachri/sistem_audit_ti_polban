@@ -227,7 +227,7 @@ class FillAuditeeController extends BaseController
     }
 
 
-    // Halaman daftar revisi untuk auditee
+    // Halaman daftar revisi untuk auditee (Disesuaikan dengan Alur Deadline & Revisi Mandiri)
     public function revisi(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
@@ -258,10 +258,22 @@ class FillAuditeeController extends BaseController
             ->join('audit_questions as aq', 'aq.id = t.question_id', 'left')
             ->join('audit_question_assignments as aqa', 'aqa.question_id = t.question_id AND aqa.audit_id = t.audit_id', 'left')
             ->where('t.audit_id', $id)
-            ->where('t.status', 'In_Progress')
             ->orderBy('t.created_at', 'ASC')
             ->get()
             ->getResult();
+
+        // 🚀 CEK OTOMATIS DEADLINE: Jika hari ini > deadline, ubah status_fase menjadi 'rtl_approval'
+        $today = date('Y-m-d');
+        foreach ($temuans as $t) {
+            if (isset($t->status_fase) && $t->status_fase === 'revisi_mandiri' && !empty($t->deadline) && $today > $t->deadline) {
+                $db->table('temuans')
+                    ->where('id', $t->id)
+                    ->update(['status_fase' => 'rtl_approval']);
+
+                // Update objek lokal agar langsung terbaca di view
+                $t->status_fase = 'rtl_approval';
+            }
+        }
 
         return view('auditee/revisi', [
             'title' => 'Revisi Jawaban - Sistem Audit IT POLBAN',
