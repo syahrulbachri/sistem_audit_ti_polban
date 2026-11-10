@@ -101,6 +101,11 @@ foreach ($items as $item) {
         $unansweredCount++;
     }
 }
+
+// Cek apakah audit sudah melewati deadline
+$deadline = strtotime($audit->deadline);
+$today = time();
+$isPastDeadline = ($today > $deadline);
 ?>
 
 <?php if ($unansweredCount > 0): ?>
@@ -114,11 +119,12 @@ foreach ($items as $item) {
 
 <div class="alert alert-info mb-4">
     <i class="bi bi-info-circle me-2"></i>
-    <strong>Info:</strong> Nilai setiap pertanyaan.
-    <?php if ($audit->framework === 'ISO 27001'): ?>
-        Tombol "Buat Temuan" akan muncul otomatis jika Anda memilih <strong>Tidak Sesuai</strong>.
+    <strong>Info:</strong> 
+    <?php if ($isPastDeadline): ?>
+        Audit sudah melewati deadline. Tombol "Buat Temuan" akan membuat temuan resmi.
     <?php else: ?>
-        Tombol "Buat Temuan" selalu tersedia sesuai <strong>pertimbangan</strong> Anda.
+        Audit masih dalam periode aktif (sampai <?= date('d M Y', $deadline) ?>). 
+        Tombol "Catat untuk Revisi" akan menandai jawaban yang perlu diperbaiki auditee.
     <?php endif; ?>
 </div>
 
@@ -133,15 +139,17 @@ foreach ($items as $item) {
         $hasFindingClass = '';
         $btnDisabled = '';
         $btnClass = 'btn-outline-secondary';
+        $btnText = $isPastDeadline ? 'Buat Temuan' : 'Catat untuk Revisi';
+        $btnIcon = $isPastDeadline ? 'bi-exclamation-triangle' : 'bi-arrow-repeat';
 
-        // Cek apakah sudah ada temuan untuk question ini
+        // Cek apakah sudah ada temuan/revisi untuk question ini
         $hasExistingFinding = isset($findingQuestionIds[$item->question_id]);
 
         if ($audit->framework === 'ISO 27001') {
             if ($scoreValue === 0) {
                 $showFindingBtn = true;
                 $hasFindingClass = 'has-finding';
-                $btnClass = 'btn-outline-danger';
+                $btnClass = $isPastDeadline ? 'btn-outline-danger' : 'btn-outline-warning';
             } else if ($scoreValue === 1) {
                 $showFindingBtn = false;
                 $btnDisabled = 'disabled';
@@ -151,7 +159,7 @@ foreach ($items as $item) {
             }
         } else if ($audit->framework === 'COBIT 2019') {
             $showFindingBtn = true;
-            $btnClass = 'btn-outline-danger';
+            $btnClass = $isPastDeadline ? 'btn-outline-danger' : 'btn-outline-warning';
         }
     ?>
         <?php $isUnanswered = empty($item->answer); ?>
@@ -194,17 +202,15 @@ foreach ($items as $item) {
                                     ?>
 
                                     <?php if ($isImage): ?>
-                                        <!-- Thumbnail Image -->
                                         <img src="/auditor/view-evidence/<?= $item->assignment_id ?>"
                                             alt="<?= esc($item->evidence_filename) ?>"
                                             class="evidence-thumbnail"
-                                            onclick="showImageModal('/auditor/view-evidence/<?= $item->assignment_id ?>', '<?= esc($item->evidence_filename) ?>')">
+                                            onclick="showPreviewModal('/auditor/view-evidence/<?= $item->assignment_id ?>', '<?= esc($item->evidence_filename) ?>', 'image')">
                                         <div class="mt-2">
                                             <small class="text-muted"><?= esc($item->evidence_filename) ?></small>
                                         </div>
 
                                     <?php elseif ($isPDF): ?>
-                                        <!-- PDF Preview -->
                                         <div class="d-flex align-items-center gap-2">
                                             <i class="bi bi-file-pdf text-danger fs-3"></i>
                                             <div>
@@ -213,13 +219,12 @@ foreach ($items as $item) {
                                             </div>
                                         </div>
                                         <div class="mt-2">
-                                            <a href="/auditor/view-evidence/<?= $item->assignment_id ?>" target="_blank" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-box-arrow-up-right me-1"></i>Lihat PDF
-                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="showPreviewModal('/auditor/view-evidence/<?= $item->assignment_id ?>', '<?= esc($item->evidence_filename) ?>', 'pdf')">
+                                                <i class="bi bi-eye me-1"></i>Preview PDF
+                                            </button>
                                         </div>
 
                                     <?php else: ?>
-                                        <!-- File Lain -->
                                         <div class="d-flex align-items-center gap-2">
                                             <i class="bi bi-file-earmark text-primary fs-3"></i>
                                             <div>
@@ -257,14 +262,12 @@ foreach ($items as $item) {
                 <div class="row mb-3">
                     <div class="col-md-8">
                         <?php
-                        // 1. DEFINISIKAN VARIABEL DI SINI (Sebelum digunakan)
                         $isBinaryFramework = false;
                         if (!empty($frameworkOptions)) {
                             $isBinaryFramework = (count($frameworkOptions) === 2);
                         }
                         ?>
 
-                        <!-- 2. BARU GUNAKAN VARIABELNYA -->
                         <label class="form-label fw-bold">
                             <?php if ($isBinaryFramework): ?>
                                 Penilaian <span class="text-danger">*</span>
@@ -274,10 +277,8 @@ foreach ($items as $item) {
                         </label>
 
                         <?php if ($isBinaryFramework): ?>
-                            <!-- Untuk Framework Biner (Radio Button) -->
                             <div class="d-flex gap-2">
                                 <?php
-                                // Urutkan: nilai 1 di atas, nilai 0 di bawah
                                 krsort($frameworkOptions);
                                 foreach ($frameworkOptions as $scoreVal => $opt):
                                 ?>
@@ -297,7 +298,6 @@ foreach ($items as $item) {
                                 <?php endforeach; ?>
                             </div>
                         <?php else: ?>
-                            <!-- Untuk Framework Skala (Dropdown) -->
                             <select name="scores[<?= $item->assignment_id ?>]" class="form-select score-input" onchange="handleScoreChange(<?= $item->assignment_id ?>, this.value)">
                                 <option value="">-- Pilih Level --</option>
                                 <?php foreach ($frameworkOptions as $scoreVal => $opt): ?>
@@ -313,39 +313,33 @@ foreach ($items as $item) {
 
                 <!-- Catatan Auditor -->
                 <div class="mb-3">
-                    <label class="form-label small">Catatan Auditor (Opsional)</label>
+                    <label class="form-label small">
+                        <?= $isPastDeadline ? 'Catatan Temuan' : 'Catatan Revisi untuk Auditee' ?> (Opsional)
+                    </label>
                     <textarea name="notes[<?= $item->assignment_id ?>]" class="form-control form-control-sm" rows="2"><?= esc($item->note ?? '') ?></textarea>
                 </div>
 
-                <!-- Tombol Buat Temuan -->
+                <!-- Tombol Buat Temuan/Revisi -->
                 <div class="finding-section" data-assignment-id="<?= $item->assignment_id ?>">
-                    <?php
-                    // Cek apakah sudah ada temuan untuk question ini
-                    $hasExistingFinding = isset($findingQuestionIds[$item->question_id]);
-
-                    // Tentukan status tombol
-                    if ($hasExistingFinding):
-                    ?>
-                        <!-- Tombol disabled jika sudah ada temuan -->
+                    <?php if ($hasExistingFinding): ?>
                         <button type="button" class="btn btn-sm btn-success" disabled>
-                            <i class="bi bi-check-circle me-2"></i>Temuan Sudah Dibuat
+                            <i class="bi bi-check-circle me-2"></i><?= $isPastDeadline ? 'Temuan' : 'Revisi' ?> Sudah Dicatat
                         </button>
                     <?php else: ?>
-                        <!-- Tombol aktif jika belum ada temuan -->
                         <button type="button" class="btn btn-sm <?= $btnClass ?> btn-make-finding"
                             id="btn-finding-<?= $item->assignment_id ?>"
                             onclick="toggleFindingForm(<?= $item->assignment_id ?>)"
                             style="<?= $showFindingBtn ? 'display: inline-block;' : 'display: none;' ?>"
                             <?= $btnDisabled ?>>
-                            <i class="bi bi-exclamation-triangle me-2"></i>Buat Temuan
+                            <i class="bi <?= $btnIcon ?> me-2"></i><?= $btnText ?>
                         </button>
                     <?php endif; ?>
 
-                    <!-- Form Temuan Inline (HANYA muncul jika belum ada temuan) -->
+                    <!-- Form Temuan/Revisi Inline -->
                     <?php if (!$hasExistingFinding): ?>
                         <div class="finding-box" id="finding-form-<?= $item->assignment_id ?>">
                             <h6 class="fw-bold text-danger mb-3">
-                                <i class="bi bi-exclamation-triangle me-2"></i>Form Temuan Audit
+                                <i class="bi <?= $btnIcon ?> me-2"></i>Form <?= $isPastDeadline ? 'Temuan Audit' : 'Catatan Revisi' ?>
                             </h6>
 
                             <input type="hidden" name="findings[<?= $item->assignment_id ?>][question_id]" value="<?= $item->question_id ?>">
@@ -372,27 +366,32 @@ foreach ($items as $item) {
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold small">Deskripsi Temuan <span class="text-danger">*</span></label>
-                                <textarea name="findings[<?= $item->assignment_id ?>][deskripsi_temuan]" class="form-control form-control-sm" rows="3" placeholder="Jelaskan ketidaksesuaian yang ditemukan..."></textarea>
+                                <label class="form-label fw-bold small">
+                                    <?= $isPastDeadline ? 'Deskripsi Temuan' : 'Alasan Perlu Revisi' ?> <span class="text-danger">*</span>
+                                </label>
+                                <textarea name="findings[<?= $item->assignment_id ?>][deskripsi_temuan]" class="form-control form-control-sm" rows="3" 
+                                    placeholder="<?= $isPastDeadline ? 'Jelaskan ketidaksesuaian yang ditemukan...' : 'Jelaskan mengapa jawaban ini perlu diperbaiki...' ?>"></textarea>
                             </div>
 
                             <div class="mb-3">
-                                <label class="form-label fw-bold small">Rekomendasi Perbaikan <span class="text-danger">*</span></label>
-                                <textarea name="findings[<?= $item->assignment_id ?>][rekomendasi]" class="form-control form-control-sm" rows="2" placeholder="Berikan rekomendasi perbaikan..."></textarea>
+                                <label class="form-label fw-bold small">
+                                    <?= $isPastDeadline ? 'Rekomendasi Perbaikan' : 'Saran Perbaikan' ?> <span class="text-danger">*</span>
+                                </label>
+                                <textarea name="findings[<?= $item->assignment_id ?>][rekomendasi]" class="form-control form-control-sm" rows="2" 
+                                    placeholder="<?= $isPastDeadline ? 'Berikan rekomendasi perbaikan...' : 'Berikan saran untuk perbaikan...' ?>"></textarea>
                             </div>
 
                             <button type="button" class="btn btn-sm btn-danger" onclick="markFindingAsSaved(<?= $item->assignment_id ?>)">
-                                <i class="bi bi-save me-2"></i>Simpan Temuan
+                                <i class="bi bi-save me-2"></i>Simpan <?= $isPastDeadline ? 'Temuan' : 'Revisi' ?>
                             </button>
                             <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleFindingForm(<?= $item->assignment_id ?>)">
                                 Batal
                             </button>
                         </div>
                     <?php else: ?>
-                        <!-- Tampilkan info temuan yang sudah ada (opsional) -->
                         <div class="alert alert-success py-2 px-3 mt-3 mb-0 small">
                             <i class="bi bi-check-circle me-1"></i>
-                            <strong>Temuan sudah dibuat.</strong>
+                            <strong><?= $isPastDeadline ? 'Temuan' : 'Revisi' ?> sudah dicatat.</strong>
                             <?php if (!empty($findingQuestionIds[$item->question_id])): ?>
                                 Tingkat Risiko: <strong><?= esc($findingQuestionIds[$item->question_id]->tingkat_risiko) ?></strong>
                             <?php endif; ?>
@@ -412,33 +411,50 @@ foreach ($items as $item) {
                 <button type="submit" name="submit_action" value="draft" class="btn btn-warning btn-lg px-4" id="btnDraft">
                     <i class="bi bi-save me-2"></i>Simpan Draft
                 </button>
-                <button type="submit" name="submit_action" value="final" class="btn btn-success btn-lg px-4" id="btnFinal" <?= $unansweredCount > 0 ? 'disabled' : '' ?>>
-                    <i class="bi bi-check-circle me-2"></i>Submit Final
-                </button>
+                <?php if ($isPastDeadline): ?>
+                    <button type="submit" name="submit_action" value="final" class="btn btn-success btn-lg px-4" id="btnFinal" <?= $unansweredCount > 0 ? 'disabled' : '' ?>>
+                        <i class="bi bi-check-circle me-2"></i>Finalisasi Audit & Buat Temuan
+                    </button>
+                <?php else: ?>
+                    <button type="submit" name="submit_action" value="final" class="btn btn-success btn-lg px-4" id="btnFinal" <?= $unansweredCount > 0 ? 'disabled' : '' ?>>
+                        <i class="bi bi-check-circle me-2"></i>Submit Penilaian Sementara
+                    </button>
+                <?php endif; ?>
             </div>
             <p class="text-muted small mt-3 mb-0">
                 <strong>Draft:</strong> Progress tersimpan, status audit tetap "Menunggu Penilaian"<br>
-                <strong>Final:</strong> Penilaian selesai, status audit berubah menjadi "Selesai"
+                <?php if ($isPastDeadline): ?>
+                    <strong class="text-danger">Final:</strong> Audit ditutup, nilai dikunci, temuan resmi dibuat
+                <?php else: ?>
+                    <strong>Final:</strong> Penilaian tersimpan, auditee dapat melakukan revisi sebelum deadline
+                <?php endif; ?>
             </p>
             <?php if ($unansweredCount > 0): ?>
                 <p class="text-danger small mt-2 mb-0">
-                    <i class="bi bi-lock me-1"></i>Submit Final dinonaktifkan karena ada <?= $unansweredCount ?> pertanyaan yang belum dijawab auditee
+                    <i class="bi bi-lock me-1"></i>Submit dinonaktifkan karena ada <?= $unansweredCount ?> pertanyaan yang belum dijawab auditee
                 </p>
             <?php endif; ?>
         </div>
     </div>
 </form>
 
-<!-- Modal untuk Image Preview -->
-<div class="modal fade" id="imageModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+<!-- MODAL PREVIEW UNIFIED (GAMBAR & PDF) -->
+<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="imageModalTitle">Preview Bukti</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="filePreviewTitle">Preview Bukti</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center">
-                <img src="" alt="" class="modal-image" id="imageModalSrc">
+            <div class="modal-body p-0 bg-dark d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+                <img id="previewImg" src="" class="img-fluid p-3" style="max-height: 80vh; display: none;">
+                <iframe id="previewPdf" src="" style="width: 100%; height: 80vh; border: none; display: none;"></iframe>
+            </div>
+            <div class="modal-footer bg-light">
+                <a id="downloadFileBtn" href="#" class="btn btn-primary" download>
+                    <i class="bi bi-download me-1"></i>Download File
+                </a>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
             </div>
         </div>
     </div>
@@ -446,18 +462,43 @@ foreach ($items as $item) {
 
 <script>
     const framework = '<?= $audit->framework ?>';
+    const isPastDeadline = <?= $isPastDeadline ? 'true' : 'false' ?>;
 
-    // ✅ FUNGSI BARU: Inisialisasi tampilan saat halaman dimuat
+    // Fungsi Preview File
+    function showPreviewModal(url, filename, type) {
+        document.getElementById('filePreviewTitle').innerText = filename;
+        document.getElementById('downloadFileBtn').href = url;
+        document.getElementById('downloadFileBtn').download = filename;
+
+        const imgEl = document.getElementById('previewImg');
+        const pdfEl = document.getElementById('previewPdf');
+
+        imgEl.style.display = 'none';
+        pdfEl.style.display = 'none';
+        imgEl.src = '';
+        pdfEl.src = '';
+
+        if (type === 'pdf') {
+            pdfEl.style.display = 'block';
+            pdfEl.src = url;
+        } else {
+            imgEl.style.display = 'block';
+            imgEl.src = url;
+        }
+
+        var myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
+        myModal.show();
+    }
+
+    // Inisialisasi tampilan score
     function initializeScoreDisplay() {
         document.querySelectorAll('.score-input').forEach(input => {
             if (input.type === 'radio') {
-                // Untuk ISO (Radio Button) - cek yang checked
                 if (input.checked) {
                     const assignmentId = input.name.match(/\[(\d+)\]/)[1];
                     handleScoreChange(assignmentId, input.value);
                 }
             } else if (input.tagName === 'SELECT') {
-                // Untuk COBIT (Dropdown)
                 if (input.value !== '') {
                     const assignmentId = input.name.match(/\[(\d+)\]/)[1];
                     handleScoreChange(assignmentId, input.value);
@@ -466,172 +507,120 @@ foreach ($items as $item) {
         });
     }
 
-    // 1. Logic Tampilan Tombol Temuan
-function handleScoreChange(assignmentId, value) {
-    const card = document.getElementById(`question-${assignmentId}`);
-    const findingBtn = document.getElementById(`btn-finding-${assignmentId}`);
+    // Logic Tampilan Tombol Temuan/Revisi
+    function handleScoreChange(assignmentId, value) {
+        const card = document.getElementById(`question-${assignmentId}`);
+        const findingBtn = document.getElementById(`btn-finding-${assignmentId}`);
 
-    // Jika elemen tombol tidak ada, hentikan fungsi
-    // Ini bisa terjadi jika temuan sudah dibuat
-    if (!findingBtn) {
-        return;
-    }
-
-    if (framework === 'ISO 27001') {
-
-        // ISO: tombol hanya muncul jika nilai = 0 (Tidak Sesuai)
-        if (value == 0) {
-            findingBtn.style.display = 'inline-block';
-            findingBtn.disabled = false;
-
-            if (card) {
-                card.classList.add('has-finding');
-            }
-
-        } else if (value == 1) {
-            findingBtn.style.display = 'none';
-            findingBtn.disabled = true;
-
-            if (card) {
-                card.classList.remove('has-finding');
-            }
+        if (!findingBtn) {
+            return;
         }
 
-    } else {
-
-        // COBIT / framework skala:
-        // tombol selalu tersedia
-        findingBtn.style.display = 'inline-block';
-        findingBtn.disabled = false;
-    }
-}
-
-
-// 2. Buka / Tutup Form Temuan
-function toggleFindingForm(id) {
-    const form = document.getElementById(`finding-form-${id}`);
-    const btn = document.getElementById(`btn-finding-${id}`);
-
-    // Pastikan form ditemukan
-    if (!form) {
-        console.error('Form temuan tidak ditemukan untuk assignment ID:', id);
-        return;
+        if (framework === 'ISO 27001') {
+            if (value == 0) {
+                findingBtn.style.display = 'inline-block';
+                findingBtn.disabled = false;
+                if (card) card.classList.add('has-finding');
+            } else if (value == 1) {
+                findingBtn.style.display = 'none';
+                findingBtn.disabled = true;
+                if (card) card.classList.remove('has-finding');
+            }
+        } else {
+            findingBtn.style.display = 'inline-block';
+            findingBtn.disabled = false;
+        }
     }
 
-    // Jika tombol sudah disimpan, jangan buka lagi
-    if (btn && btn.classList.contains('saved')) {
-        return;
+    // Buka / Tutup Form Temuan/Revisi
+    function toggleFindingForm(id) {
+        const form = document.getElementById(`finding-form-${id}`);
+        const btn = document.getElementById(`btn-finding-${id}`);
+
+        if (!form) {
+            console.error('Form temuan tidak ditemukan untuk assignment ID:', id);
+            return;
+        }
+
+        if (btn && btn.classList.contains('saved')) {
+            return;
+        }
+
+        form.classList.toggle('show');
     }
 
-    form.classList.toggle('show');
-}
+    // Simpan Temuan/Revisi
+    function markFindingAsSaved(id) {
+        const form = document.getElementById(`finding-form-${id}`);
 
+        if (!form) {
+            console.error('Form temuan tidak ditemukan:', id);
+            return;
+        }
 
-// 3. Simpan Temuan
-function markFindingAsSaved(id) {
-    const form = document.getElementById(`finding-form-${id}`);
+        const desc = form.querySelector('textarea[name*="deskripsi_temuan"]');
+        const rec = form.querySelector('textarea[name*="rekomendasi"]');
 
-    if (!form) {
-        console.error('Form temuan tidak ditemukan:', id);
-        return;
+        if (desc.value.trim() === '' || rec.value.trim() === '') {
+            alert('Deskripsi dan Rekomendasi wajib diisi!');
+            return;
+        }
+
+        const card = document.getElementById(`question-${id}`);
+        const findingBtn = document.getElementById(`btn-finding-${id}`);
+
+        if (card) card.classList.add('has-finding');
+
+        if (findingBtn) {
+            const btnText = isPastDeadline ? 'Temuan' : 'Revisi';
+            findingBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>' + btnText + ' Sudah Dicatat';
+            findingBtn.disabled = true;
+            findingBtn.classList.remove('btn-outline-danger', 'btn-outline-warning', 'btn-danger');
+            findingBtn.classList.add('btn-success', 'saved');
+        }
+
+        form.classList.remove('show');
     }
 
-    const desc = form.querySelector(
-        'textarea[name*="deskripsi_temuan"]'
-    );
-
-    const rec = form.querySelector(
-        'textarea[name*="rekomendasi"]'
-    );
-
-    // Validasi
-    if (desc.value.trim() === '' || rec.value.trim() === '') {
-        alert('Deskripsi dan Rekomendasi wajib diisi!');
-        return;
-    }
-
-    const card = document.getElementById(`question-${id}`);
-    const findingBtn = document.getElementById(`btn-finding-${id}`);
-
-    if (card) {
-        card.classList.add('has-finding');
-    }
-
-    if (findingBtn) {
-        findingBtn.innerHTML =
-            '<i class="bi bi-check-circle me-2"></i>Temuan Sudah Dibuat';
-
-        findingBtn.disabled = true;
-
-        findingBtn.classList.remove(
-            'btn-outline-danger',
-            'btn-danger'
-        );
-
-        findingBtn.classList.add(
-            'btn-success',
-            'saved'
-        );
-    }
-
-    form.classList.remove('show');
-}
-
-    // 3. ✅ FUNGSI BARU: Tampilkan Preview Gambar di Modal
-    function showImageModal(imageUrl, filename) {
-        // Set judul modal
-        document.getElementById('imageModalTitle').textContent = filename;
-
-        // Set source gambar
-        const imgElement = document.getElementById('imageModalSrc');
-        imgElement.src = imageUrl;
-        imgElement.alt = filename;
-
-        // Tampilkan modal Bootstrap
-        const modal = new bootstrap.Modal(document.getElementById('imageModal'));
-        modal.show();
-    }
-
-    // 4. VALIDASI SUBMIT FINAL (DIPERBAIKI untuk ISO & COBIT)
+    // Validasi Submit Final
     document.getElementById('formPenilaian').addEventListener('submit', function(e) {
-        const action = e.submitter.value; // 'draft' atau 'final'
+        const action = e.submitter.value;
 
         if (action === 'final') {
             let allFilled = true;
 
-            // Cek setiap input penilaian
             document.querySelectorAll('.score-input').forEach(input => {
                 if (input.type === 'radio') {
-                    // Untuk ISO (Radio Button)
                     const name = input.name;
                     const isChecked = document.querySelector(`input[name="${name}"]:checked`);
                     if (!isChecked) allFilled = false;
                 } else if (input.tagName === 'SELECT') {
-                    // Untuk COBIT (Dropdown)
                     if (input.value === '') allFilled = false;
                 }
             });
 
             if (!allFilled) {
-                e.preventDefault(); // Batalkan submit
-                alert("⚠️ Peringatan: Masih ada soal yang belum dinilai. Silakan lengkapi semua penilaian sebelum Submit Final!");
+                e.preventDefault();
+                alert("⚠️ Peringatan: Masih ada soal yang belum dinilai!");
 
-                // Scroll otomatis ke soal pertama yang kosong
                 const firstEmpty = document.querySelector('.score-input:not(:checked), select.score-input[value=""]');
                 if (firstEmpty) {
-                    firstEmpty.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'center'
-                    });
+                    firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     firstEmpty.focus();
                 }
             }
         }
     });
 
-    // ✅ PANGGIL FUNGSI INISIALISASI SAAT HALAMAN SELESAI DIMUAT
+    // Initialize on load
     document.addEventListener('DOMContentLoaded', function() {
         initializeScoreDisplay();
+    });
+
+    // Bersihkan modal saat ditutup
+    document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', function () {
+        document.getElementById('previewImg').src = '';
+        document.getElementById('previewPdf').src = '';
     });
 </script>
 
