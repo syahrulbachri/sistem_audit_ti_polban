@@ -124,7 +124,7 @@ class DashboardAuditorController extends BaseController
             }
         } else {
             $assignedQuestions = $db->table('audit_question_assignments as aqa')
-                ->select('aq.id, aq.clause_code, aq.question_text, aq.is_standard, aqa.score, aqa.note, aqa.answer')
+                ->select('aq.id, aq.clause_code, aq.question_text, aq.is_standard, aqa.score, aqa.note, aqa.answer, aqa.needs_revision, aqa.is_improve_request') // <-- TAMBAHKAN 2 KOLOM INI
                 ->join('audit_questions as aq', 'aq.id = aqa.question_id')
                 ->where('aqa.audit_id', $id)
                 ->orderBy('aq.clause_code', 'ASC')
@@ -319,8 +319,10 @@ class DashboardAuditorController extends BaseController
             ->where('audits.created_by_auditor', $auditorId)
             ->get()->getRow();
 
-        if (!$audit || $audit->status !== 'menunggu_penilaian') {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        //Izinkan akses untuk menunggu_penilaian, menunggu_revisi, DAN menunggu_finalisasi
+        $allowedStatuses = ['menunggu_penilaian', 'menunggu_revisi', 'menunggu_finalisasi'];
+        if (!$audit || !in_array($audit->status, $allowedStatuses)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Status audit tidak memungkinkan untuk dinilai.');
         }
 
         $items = $db->table('audit_question_assignments as aqa')
@@ -392,16 +394,24 @@ class DashboardAuditorController extends BaseController
         }
 
         $db = \Config\Database::connect();
-        $isFinal = ($this->request->getPost('submit_action') === 'final');
+        $audit = $db->table('audits')->where('id', $id)->get()->getRow();
 
-        $scores = $this->request->getPost('scores') ?? [];
-        $notes = $this->request->getPost('notes') ?? [];
+        if (!$audit) {
+            return redirect()->back()->with('error', 'Data audit tidak ditemukan.');
+        }
+
+        $auditTitle = $audit->title;
+        $submitAction = $this->request->getPost('submit_action'); // 'draft' atau 'final'
+        $isPastDeadline = (date('Y-m-d') >= $audit->deadline);
+
+        $scores   = $this->request->getPost('scores') ?? [];
+        $notes    = $this->request->getPost('notes') ?? [];
         $findings = $this->request->getPost('findings') ?? [];
 
-        $audit = $db->table('audits')->where('id', $id)->get()->getRow();
-        $auditTitle = $audit ? $audit->title : 'Audit ID ' . $id;
-
-        if ($isFinal) {
+        // ==========================================
+        // 1. VALIDASI: Cek jawaban auditee jika Final
+        // ==========================================
+        if ($submitAction === 'final') {
             $unansweredQuestions = $db->table('audit_question_assignments')
                 ->where('audit_id', $id)
                 ->groupStart()
@@ -424,155 +434,166 @@ class DashboardAuditorController extends BaseController
             }
         }
 
-        if (!empty($scores)) {
-            $scoredCount = count(array_filter($scores, function ($s) {
-                return $s !== '' && $s !== null;
-            }));
-            if ($scoredCount > 0) {
-                log_activity('UPDATE', 'audit_question_assignments', 'Memberikan penilaian/skor pada ' . $scoredCount . ' jawaban auditee di audit "' . $auditTitle . '".');
-            }
-        }
+        // ==========================================
+        // 2. PROSES PENILAIAN & REVISI/TEMUAN
+        // ==========================================
+        $needsRevisionCount = 0;
+        $temuanCreatedCount = 0;
 
         foreach ($scores as $assignmentId => $score) {
             if ($score !== '' && is_numeric($score)) {
-                $db->table('audit_question_assignments')->where('id', $assignmentId)->update([
+                // Cek apakah auditor mengisi form (baik form revisi sederhana atau form temuan lengkap)
+                $hasFindingData = isset($findings[$assignmentId]) && !empty(trim($findings[$assignmentId]['deskripsi_temuan'] ?? ''));
+
+                // Data dasar yang selalu diupdate
+                $updateData = [
                     'score' => (float) $score,
-                    'note' => $notes[$assignmentId] ?? null
-                ]);
-            }
-        }
-
-        // =========================================================================
-        // 3. PROSES PEMBUATAN TEMUAN BARU (CEK DEADLINE AUDIT OTOMATIS)
-        // =========================================================================
-        $findingsCreatedCount = 0;
-        $today = date('Y-m-d');
-
-        // Gunakan deadline dari tabel audits jika ada, jika kosong fallback +7 hari
-        $targetDeadline = ($audit && !empty($audit->deadline)) ? $audit->deadline : date('Y-m-d', strtotime('+7 days'));
-
-        // Cek apakah deadline sudah tiba atau terlewat (<= hari ini)
-        $isExpired = ($targetDeadline <= $today);
-        $initialStatus = $isExpired ? 'Open' : 'In_Progress';
-        $initialStatusFase = $isExpired ? 'rtl_approval' : 'revisi_mandiri';
-
-        foreach ($findings as $assignmentId => $finding) {
-            if (!empty($finding['deskripsi_temuan'])) {
-                $existing = $db->table('temuans')->where('audit_id', $id)->where('question_id', $finding['question_id'])->get()->getRow();
-
-                $dataTemuan = [
-                    'audit_id' => $id,
-                    'question_id' => $finding['question_id'],
-                    'deskripsi_temuan' => $finding['deskripsi_temuan'],
-                    'tingkat_risiko' => $finding['tingkat_risiko'] ?? 'Sedang',
-                    'rekomendasi' => $finding['rekomendasi'] ?? null,
+                    'note'  => $notes[$assignmentId] ?? null,
+                    'needs_revision' => $hasFindingData ? 1 : 0, // 1 jika ada catatan revisi/temuan, 0 jika tidak
+                    'is_improve_request' => 0 // Reset flag improve request karena auditor sudah menilai ulang
                 ];
 
-                if ($existing) {
-                    $db->table('temuans')->where('id', $existing->id)->update($dataTemuan);
-                } else {
-                    $dataTemuan['status'] = $initialStatus;
-                    $dataTemuan['status_fase'] = $initialStatusFase;
-                    $dataTemuan['deadline'] = $targetDeadline;
-                    $dataTemuan['created_at'] = date('Y-m-d H:i:s');
+                $db->table('audit_question_assignments')->where('id', $assignmentId)->update($updateData);
 
-                    $db->table('temuans')->insert($dataTemuan);
-                    $findingsCreatedCount++;
+                if ($hasFindingData) {
+                    $needsRevisionCount++;
+                    $findingData = $findings[$assignmentId];
+
+                    // LOGIKA PENTING: Hanya buat/update Temuan jika DEADLINE SUDAH HABIS
+                    if ($isPastDeadline) {
+                        $existingTemuan = $db->table('temuans')
+                            ->where('audit_id', $id)
+                            ->where('question_id', $findingData['question_id'])
+                            ->get()->getRow();
+
+                        $temuanData = [
+                            'audit_id'         => $id,
+                            'question_id'      => $findingData['question_id'],
+                            'deskripsi_temuan' => $findingData['deskripsi_temuan'],
+                            'tingkat_risiko'   => $findingData['tingkat_risiko'] ?? 'Sedang',
+                            'rekomendasi'      => $findingData['rekomendasi'] ?? null,
+                            'status'           => 'Open'
+                        ];
+
+                        if ($existingTemuan) {
+                            $db->table('temuans')->where('id', $existingTemuan->id)->update($temuanData);
+                        } else {
+                            $db->table('temuans')->insert($temuanData);
+                            $temuanCreatedCount++;
+                        }
+                    }
                 }
             }
         }
 
-        if ($findingsCreatedCount > 0) {
-            $faseLabel = $isExpired ? 'RTL Approval (Deadline Terlewat)' : 'Revisi Mandiri';
-            log_activity('CREATE', 'temuans', 'Membuat ' . $findingsCreatedCount . ' temuan ketidaksesuaian baru pada audit "' . $auditTitle . '" (Fase: ' . $faseLabel . ').');
+        // ==========================================
+        // 3. HITUNG SKOR (Tetap dinamis setiap kali simpan)
+        // ==========================================
+        $framework = $db->table('frameworks')->where('nama', $audit->framework)->get()->getRow();
+        $scoringType = $framework ? $framework->scoring_type : 'binary';
+
+        $allScores = $db->table('audit_question_assignments')->select('score')->where('audit_id', $id)->get()->getResult();
+        $total = 0;
+        $count = 0;
+        foreach ($allScores as $s) {
+            if ($s->score !== null) {
+                $total += $s->score;
+                $count++;
+            }
         }
 
-        // 4. Update Status Audit
-        if ($isFinal) {
-            $framework = $db->table('frameworks')->where('nama', $audit->framework)->get()->getRow();
-            $scoringType = $framework ? $framework->scoring_type : 'binary';
-
-            $allScores = $db->table('audit_question_assignments')->select('score')->where('audit_id', $id)->get()->getResult();
-            $total = 0;
-            $count = 0;
-            foreach ($allScores as $s) {
-                if ($s->score !== null) {
-                    $total += $s->score;
-                    $count++;
-                }
-            }
-
-            $finalScore = 0;
+        $currentScore = 0;
+        if ($count > 0) {
             if ($scoringType === 'binary') {
-                $finalScore = $count > 0 ? round(($total / $count) * 100) : 0;
+                $currentScore = round(($total / $count) * 100);
             } else {
-                $finalScore = $count > 0 ? round(($total / $count), 2) : 0;
+                $currentScore = round(($total / $count), 2);
             }
+        }
 
-            $hasFindings = $db->table('temuans')->where('audit_id', $id)->countAllResults() > 0;
-            $nextAuditStatus = $hasFindings ? 'revisi' : 'selesai';
+        // ==========================================
+        // 4. TENTUKAN STATUS AUDIT BARU
+        // ==========================================
+        $newStatus = $audit->status; // Default tetap status lama
 
-            $db->table('audits')->where('id', $id)->update([
-                'status' => $nextAuditStatus,
-                'final_score' => $finalScore,
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
+        if ($submitAction === 'final' && $isPastDeadline) {
+            // Deadline habis + Auditor klik Finalisasi = SELESAI
+            $newStatus = 'selesai';
+        } elseif (!$isPastDeadline) {
+            // Belum deadline: Tentukan berdasarkan ada/tidaknya revisi
+            if ($needsRevisionCount > 0) {
+                $newStatus = 'menunggu_revisi';
+            } else {
+                $newStatus = 'menunggu_finalisasi';
+            }
+        }
 
-            log_activity('UPDATE', 'audits', 'Memfinalisasi audit "' . $auditTitle . '" (Status berubah menjadi ' . $nextAuditStatus . ').');
+        // ==========================================
+        // 5. UPDATE DATABASE & LOG ACTIVITY
+        // ==========================================
+        $db->table('audits')->where('id', $id)->update([
+            'status'      => $newStatus,
+            'final_score' => $currentScore,
+            'updated_at'  => date('Y-m-d H:i:s')
+        ]);
 
-            return redirect()->to('/dashboard')->with('success', 'Penilaian Final berhasil disimpan!');
+        // Logging
+        if ($submitAction === 'final' && $isPastDeadline) {
+            log_activity('UPDATE', 'audits', "Memfinalisasi audit '{$auditTitle}'. Status: Selesai. Temuan dibuat: {$temuanCreatedCount}.");
+            $successMsg = 'Audit berhasil difinalisasi dan ditutup!';
+            if ($temuanCreatedCount > 0) {
+                $successMsg .= " ({$temuanCreatedCount} temuan resmi dibuat).";
+            }
+            return redirect()->to('/dashboard')->with('success', $successMsg);
         } else {
-            $db->table('audits')->where('id', $id)->update(['updated_at' => date('Y-m-d H:i:s')]);
-            log_activity('UPDATE', 'audits', 'Menyimpan draft penilaian untuk audit "' . $auditTitle . '".');
-
-            return redirect()->back()->with('success', 'Draft berhasil disimpan!');
+            $actionText = ($submitAction === 'final') ? 'Penilaian Sementara' : 'Draft Penilaian';
+            log_activity('UPDATE', 'audits', "Menyimpan {$actionText} untuk audit '{$auditTitle}'. Status saat ini: {$newStatus}.");
+            return redirect()->back()->with('success', "{$actionText} berhasil disimpan!");
         }
     }
 
     public function viewEvidence(int $assignmentId)
     {
-        if (!session()->get('logged_in')) {
+        if (!session()->get('logged_in') || session()->get('role') !== 'auditor') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
 
         $db = \Config\Database::connect();
-
         $assignment = $db->table('audit_question_assignments')
-            ->select('evidence_file, evidence_filename')
             ->where('id', $assignmentId)
-            ->get()
-            ->getRow();
+            ->get()->getRow();
 
-        if (!$assignment || empty($assignment->evidence_file)) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('File tidak ditemukan');
+        if (!$assignment || empty($assignment->evidence_filename)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        $ext = strtolower(pathinfo($assignment->evidence_filename, PATHINFO_EXTENSION));
+        // Cek apakah ada parameter ?file= (untuk multi-file)
+        $requestedFile = $this->request->getGet('file');
 
-        $mimeTypes = [
-            'jpg' => 'image/jpeg',
-            'jpeg' => 'image/jpeg',
-            'png' => 'image/png',
-            'gif' => 'image/gif',
-            'pdf' => 'application/pdf',
-            'doc' => 'application/msword',
-            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'xls' => 'application/vnd.ms-excel',
-            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ];
+        if ($requestedFile) {
+            // Cari file yang diminta di dalam JSON array
+            $files = json_decode($assignment->evidence_filename, true);
 
-        $mimeType = $mimeTypes[$ext] ?? 'application/octet-stream';
-
-        $this->response->setHeader('Content-Type', $mimeType);
-
-        if (strpos($mimeType, 'image/') === 0 || $mimeType === 'application/pdf') {
-            $this->response->setHeader('Content-Disposition', 'inline; filename="' . $assignment->evidence_filename . '"');
+            // Jika formatnya array dan file yang diminta ada di dalamnya (Keamanan: mencegah akses file orang lain)
+            if (is_array($files) && in_array($requestedFile, $files)) {
+                $filePath = FCPATH . 'uploads/evidence/' . $requestedFile;
+                if (file_exists($filePath)) {
+                    // true = inline (untuk preview di browser/modal)
+                    return $this->response->download($requestedFile, true)->setFilePath($filePath);
+                }
+            }
         } else {
-            $this->response->setHeader('Content-Disposition', 'attachment; filename="' . $assignment->evidence_filename . '"');
+            // Fallback untuk data lama (jika suatu saat ada yang single file string)
+            $fileName = is_string($assignment->evidence_filename) ? $assignment->evidence_filename : (json_decode($assignment->evidence_filename, true)[0] ?? null);
+
+            if ($fileName) {
+                $filePath = FCPATH . 'uploads/evidence/' . $fileName;
+                if (file_exists($filePath)) {
+                    return $this->response->download($fileName, true)->setFilePath($filePath);
+                }
+            }
         }
 
-        $this->response->setHeader('Content-Length', strlen($assignment->evidence_file));
-
-        return $this->response->setBody($assignment->evidence_file);
+        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
     }
 }

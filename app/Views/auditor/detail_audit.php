@@ -428,7 +428,222 @@
                     <a href="/audit/nilai/<?= $audit->id ?>" class="btn btn-warning text-dark px-4 fw-bold">
                         <i class="bi bi-star me-2"></i>Nilai Sekarang
                     </a>
+
+                <?php elseif ($audit->status === 'menunggu_revisi'): ?>
+                    <!-- ========================================== -->
+                    <!-- STATUS: MENUNGGU REVISI (NILAI SEMENTARA)  -->
+                    <!-- ========================================== -->
+
+                    <!-- 1. Kartu Nilai Sementara -->
+                    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        <div class="card-body p-4 text-white text-center">
+                            <h6 class="text-uppercase opacity-75 mb-2">Nilai Sementara Audit</h6>
+                            <h1 class="display-4 fw-bold mb-2">
+                                <?php if ($isBinary): ?>
+                                    <?= round($audit->final_score ?? 0) ?>%
+                                <?php else: ?>
+                                    <?= number_format($audit->final_score ?? 0, 2) ?>
+                                <?php endif; ?>
+                            </h1>
+                            <p class="mb-0 opacity-75">
+                                <i class="bi bi-clock-history me-1"></i>
+                                Deadline Revisi: <?= date('d M Y', strtotime($audit->deadline)) ?>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning border-0 shadow-sm mb-4">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Status: Menunggu Revisi.</strong> Auditee dapat memperbaiki jawaban untuk pertanyaan yang ditandai di bawah ini sebelum deadline. Anda dapat memperbarui penilaian pada item yang direvisi.
+                    </div>
+
+                    <!-- 2. Rincian Penilaian & Catatan Revisi -->
+                    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                        <div class="card-header bg-white py-4 border-bottom">
+                            <h4 class="fw-bold mb-0 text-start"><i class="bi bi-list-check me-2"></i>Rincian Penilaian & Catatan Revisi</h4>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            <?php if (!empty($assignedQuestions)): ?>
+                                <?php $no = 1;
+                                foreach ($assignedQuestions as $q): ?>
+                                    <?php
+                                    // Cek apakah item ini perlu action (revisi atau improve)
+                                    $needsAction = ($q->needs_revision == 1 || !empty($q->is_improve_request));
+                                    $borderClass = $needsAction ? 'border-warning border-start border-4' : '';
+                                    $bgClass = $needsAction ? 'bg-warning bg-opacity-10' : '';
+                                    ?>
+
+                                    <div class="list-group-item py-4 <?= $borderClass ?> <?= $bgClass ?>">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div class="flex-grow-1 text-start">
+                                                <div class="mb-2">
+                                                    <span class="badge bg-primary me-2"><?= $no ?></span>
+                                                    <code class="badge bg-secondary"><?= esc($q->clause_code) ?></code>
+
+                                                    <?php if ($needsAction): ?>
+                                                        <?php if ($q->is_improve_request == 1): ?>
+                                                            <span class="badge bg-info text-dark ms-2"><i class="bi bi-arrow-up-circle me-1"></i>Request Improve</span>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-danger ms-2"><i class="bi bi-exclamation-triangle me-1"></i>Perlu Revisi</span>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <h6 class="fw-bold mb-2"><?= esc($q->question_text) ?></h6>
+
+                                                <!-- Jawaban Auditee -->
+                                                <div class="bg-light p-3 rounded mb-2">
+                                                    <strong class="text-primary small"><i class="bi bi-reply me-1"></i>Jawaban Auditee:</strong>
+                                                    <p class="mb-0 small mt-1"><?= nl2br(esc($q->answer ?? 'Tidak ada jawaban')) ?></p>
+                                                </div>
+
+                                                <!-- Catatan Revisi (Jika ada) -->
+                                                <?php if ($needsAction && !empty($q->note)): ?>
+                                                    <div class="alert alert-danger py-2 mb-2 small">
+                                                        <strong><i class="bi bi-pencil-square me-1"></i>Catatan Revisi Auditor:</strong>
+                                                        <p class="mb-0 mt-1"><?= nl2br(esc($q->note)) ?></p>
+                                                    </div>
+                                                <?php elseif (!empty($q->note)): ?>
+                                                    <small class="text-muted fst-italic"><i class="bi bi-chat-left-text me-1"></i>Catatan: <?= esc($q->note) ?></small>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <!-- Skor -->
+                                            <div class="text-end">
+                                                <?php if ($q->score !== null): ?>
+                                                    <?php if ($isBinary): ?>
+                                                        <span class="badge <?= $q->score == 1 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3 py-2">
+                                                            <?= $q->score == 1 ? 'Sesuai' : 'Tidak Sesuai' ?>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-info text-dark rounded-pill px-3 py-2">
+                                                            Level <?= number_format($q->score, 2) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary rounded-pill px-3 py-2">Belum Dinilai</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php $no++;
+                                endforeach; ?>
+                            <?php else: ?>
+                                <div class="p-4 text-center text-muted">Tidak ada data pertanyaan.</div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- 3. Tombol Aksi -->
+                    <div class="card-footer bg-white p-4 text-center border-0">
+                        <a href="/dashboard" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
+                        </a>
+                        <a href="/audit/nilai/<?= $audit->id ?>" class="btn btn-warning text-dark px-4 ms-2 fw-bold">
+                            <i class="bi bi-pencil me-1"></i> Lanjutkan Penilaian / Revisi
+                        </a>
+                    </div>
+
+                <?php elseif ($audit->status === 'menunggu_finalisasi'): ?>
+                    <!-- ========================================== -->
+                    <!-- STATUS: MENUNGGU FINALISASI (SEMUA OKE)    -->
+                    <!-- ========================================== -->
+
+                    <!-- 1. Kartu Nilai Sementara (Tema Biru) -->
+                    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: linear-gradient(135deg, #0dcaf0 0%, #0d6efd 100%);">
+                        <div class="card-body p-4 text-white text-center">
+                            <h6 class="text-uppercase opacity-75 mb-2">Nilai Sementara Audit</h6>
+                            <h1 class="display-4 fw-bold mb-2">
+                                <?php if ($isBinary): ?>
+                                    <?= round($audit->final_score ?? 0) ?>%
+                                <?php else: ?>
+                                    <?= number_format($audit->final_score ?? 0, 2) ?>
+                                <?php endif; ?>
+                            </h1>
+                            <p class="mb-0 opacity-75">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Semua jawaban telah dinilai. Menunggu deadline (<?= date('d M Y', strtotime($audit->deadline)) ?>) untuk finalisasi.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info border-0 shadow-sm mb-4">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <strong>Status: Menunggu Finalisasi.</strong> Tidak ada item yang perlu direvisi saat ini. Auditee masih dapat mengajukan "Request Improve" sebelum deadline tiba.
+                    </div>
+
+                    <!-- 2. Rincian Penilaian (Read-Only, TANPA Border Peringatan) -->
+                    <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
+                        <div class="card-header bg-white py-4 border-bottom">
+                            <h4 class="fw-bold mb-0 text-start"><i class="bi bi-list-check me-2"></i>Rincian Penilaian</h4>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            <?php if (!empty($assignedQuestions)): ?>
+                                <?php $no = 1;
+                                foreach ($assignedQuestions as $q): ?>
+                                    <div class="list-group-item py-4"> <!-- Perhatikan: TIDAK ADA $borderClass di sini -->
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div class="flex-grow-1 text-start">
+                                                <div class="mb-2">
+                                                    <span class="badge bg-primary me-2"><?= $no ?></span>
+                                                    <code class="badge bg-secondary"><?= esc($q->clause_code) ?></code>
+
+                                                    <!-- Tetap tampilkan jika ada request improve yang masuk -->
+                                                    <?php if (!empty($q->is_improve_request)): ?>
+                                                        <span class="badge bg-info text-dark ms-2"><i class="bi bi-arrow-up-circle me-1"></i>Request Improve</span>
+                                                    <?php endif; ?>
+                                                </div>
+
+                                                <h6 class="fw-bold mb-2"><?= esc($q->question_text) ?></h6>
+
+                                                <div class="bg-light p-3 rounded mb-2">
+                                                    <strong class="text-primary small"><i class="bi bi-reply me-1"></i>Jawaban Auditee:</strong>
+                                                    <p class="mb-0 small mt-1"><?= nl2br(esc($q->answer ?? 'Tidak ada jawaban')) ?></p>
+                                                </div>
+
+                                                <?php if (!empty($q->note)): ?>
+                                                    <small class="text-muted fst-italic"><i class="bi bi-chat-left-text me-1"></i>Catatan: <?= esc($q->note) ?></small>
+                                                <?php endif; ?>
+                                            </div>
+
+                                            <!-- Skor -->
+                                            <div class="text-end">
+                                                <?php if ($q->score !== null): ?>
+                                                    <?php if ($isBinary): ?>
+                                                        <span class="badge <?= $q->score == 1 ? 'bg-success' : 'bg-danger' ?> rounded-pill px-3 py-2">
+                                                            <?= $q->score == 1 ? 'Sesuai' : 'Tidak Sesuai' ?>
+                                                        </span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-info text-dark rounded-pill px-3 py-2">
+                                                            Level <?= number_format($q->score, 2) ?>
+                                                        </span>
+                                                    <?php endif; ?>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary rounded-pill px-3 py-2">Belum Dinilai</span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php $no++;
+                                endforeach; ?>
+                            <?php else: ?>
+                                <div class="p-4 text-center text-muted">Tidak ada data pertanyaan.</div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <!-- 3. Tombol Aksi -->
+                    <div class="card-footer bg-white p-4 text-center border-0">
+                        <a href="/dashboard" class="btn btn-outline-secondary px-4">
+                            <i class="bi bi-arrow-left me-1"></i> Kembali ke Dashboard
+                        </a>
+                        <a href="/audit/nilai/<?= $audit->id ?>" class="btn btn-info text-dark px-4 ms-2 fw-bold">
+                            <i class="bi bi-eye me-1"></i> Lihat / Update Penilaian
+                        </a>
+                    </div>
+
                 <?php elseif ($audit->status === 'selesai'): ?>
+                    <!-- (Kode status 'selesai' yang sudah ada biarkan tetap di sini) -->
 
                     <!-- 1. Kartu Skor Akhir -->
                     <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; background: linear-gradient(135deg, var(--primary-navy) 0%, #1e3a8a 100%);">
