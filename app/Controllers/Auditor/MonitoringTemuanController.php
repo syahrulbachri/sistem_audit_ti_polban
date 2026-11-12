@@ -16,9 +16,9 @@ class MonitoringTemuanController extends BaseController
         $auditorId = session()->get('id');
 
         // Ambil parameter filter
-        $search        = $this->request->getGet('search') ?? '';
-        $filterStatus  = $this->request->getGet('status') ?? '';
-        $filterRisiko  = $this->request->getGet('risiko') ?? '';
+        $search = $this->request->getGet('search') ?? '';
+        $filterStatus = $this->request->getGet('status') ?? '';
+        $filterRisiko = $this->request->getGet('risiko') ?? '';
         $filterPeriode = $this->request->getGet('periode') ?? '';
 
         // Ambil daftar periode untuk dropdown
@@ -47,19 +47,22 @@ class MonitoringTemuanController extends BaseController
                 ->orLike('u.fullname', $search)
                 ->groupEnd();
         }
-        if (!empty($filterStatus)) $builder->where('temuans.status', $filterStatus);
-        if (!empty($filterRisiko)) $builder->where('temuans.tingkat_risiko', $filterRisiko);
-        if (!empty($filterPeriode)) $builder->where('a.periode_id', $filterPeriode);
+        if (!empty($filterStatus))
+            $builder->where('temuans.status', $filterStatus);
+        if (!empty($filterRisiko))
+            $builder->where('temuans.tingkat_risiko', $filterRisiko);
+        if (!empty($filterPeriode))
+            $builder->where('a.periode_id', $filterPeriode);
 
         $findings = $builder->orderBy('temuans.tingkat_risiko', 'DESC')->orderBy('temuans.created_at', 'DESC')->get()->getResult();
 
         // Hitung statistik
         $statsBuilder = $db->table('temuans')->join('audits as a', 'a.id = temuans.audit_id')->where('a.created_by_auditor', $auditorId);
         $stats = [
-            'total'       => (clone $statsBuilder)->countAllResults(),
-            'open'        => (clone $statsBuilder)->where('temuans.status', 'Open')->countAllResults(),
+            'total' => (clone $statsBuilder)->countAllResults(),
+            'open' => (clone $statsBuilder)->where('temuans.status', 'Open')->countAllResults(),
             'in_progress' => (clone $statsBuilder)->where('temuans.status', 'In_Progress')->countAllResults(),
-            'closed'      => (clone $statsBuilder)->where('temuans.status', 'Closed')->countAllResults(),
+            'closed' => (clone $statsBuilder)->where('temuans.status', 'Closed')->countAllResults(),
         ];
 
         return view('auditor/monitoring_temuan', [
@@ -75,7 +78,7 @@ class MonitoringTemuanController extends BaseController
         ]);
     }
 
-        public function detail(int $id)
+    public function detail(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditor') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
@@ -103,7 +106,8 @@ class MonitoringTemuanController extends BaseController
             ->get()
             ->getRow();
 
-        if (!$finding) throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        if (!$finding)
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
 
         return view('auditor/detail_temuan', [
             'title' => 'Detail Temuan #' . $id . ' - Sistem Audit IT POLBAN',
@@ -145,7 +149,7 @@ class MonitoringTemuanController extends BaseController
         $newStatus = ($action === 'approve') ? 'In_Progress' : 'Open';
 
         $db->table('temuans')->where('id', $id)->update([
-            'status'       => $newStatus,
+            'status' => $newStatus,
             'auditor_note' => $catatan
         ]);
 
@@ -193,7 +197,7 @@ class MonitoringTemuanController extends BaseController
         $newStatus = ($action === 'approve') ? 'Closed' : 'In_Progress';
 
         $updateData = [
-            'status'       => $newStatus,
+            'status' => $newStatus,
             'auditor_note' => $catatan
         ];
 

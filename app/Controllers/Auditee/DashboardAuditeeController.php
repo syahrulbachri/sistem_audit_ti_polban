@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Controllers\Auditee;
+
 use App\Controllers\BaseController;
 
 class DashboardAuditeeController extends BaseController
@@ -11,6 +13,24 @@ class DashboardAuditeeController extends BaseController
         }
         $db = \Config\Database::connect();
         $userId = session()->get('id');
+        $today = date('Y-m-d');
+
+        // OTOMATIS CEK & UBAH KE RTL JIKA DEADLINE REVISI LEWAT (Aman)
+        $rawAudits = $db->table('audits')
+            ->select('id')
+            ->where('auditee_id', $userId)
+            ->get()->getResult();
+
+        $auditIds = array_column($rawAudits, 'id');
+
+        if (!empty($auditIds)) {
+            $db->table('temuans')
+                ->whereIn('audit_id', $auditIds)
+                ->where('status_fase', 'revisi_mandiri')
+                ->where('deadline IS NOT NULL')
+                ->where('deadline <', $today)
+                ->update(['status_fase' => 'rtl_approval']);
+        }
 
         // 1. Tugas aktif (aktif / menunggu_penilaian)
         $audits = $db->table('audits')
@@ -26,10 +46,9 @@ class DashboardAuditeeController extends BaseController
 
         // 2. Cari semua temuan aktif milik auditee
         $temuanRows = $db->table('temuans')
-            ->select('temuans.audit_id, temuans.status as t_status, temuans.rtl_description, temuans.revisi_sent_at, audits.title')
+            ->select('temuans.audit_id, temuans.status as t_status, temuans.status_fase, temuans.rtl_description, temuans.revisi_sent_at, audits.title')
             ->join('audits', 'audits.id = temuans.audit_id')
             ->where('audits.auditee_id', $userId)
-            ->whereIn('temuans.status', ['Open', 'In_Progress'])
             ->get()->getResult();
 
         $rtlMap = [];
@@ -37,25 +56,18 @@ class DashboardAuditeeController extends BaseController
         $waitingMap = [];
 
         foreach ($temuanRows as $t) {
-            // Open = urusan RTL
-            if ($t->t_status === 'Open') {
+            if ($t->status_fase === 'rtl_approval' || $t->t_status === 'Open') {
                 if (!isset($rtlMap[$t->audit_id])) {
                     $rtlMap[$t->audit_id] = (object) ['id' => $t->audit_id, 'title' => $t->title, 'belum_rtl' => 0];
                 }
-                if (empty($t->rtl_description)) {
-                    $rtlMap[$t->audit_id]->belum_rtl++;
-                }
-            }
-            // In_Progress = RTL udah di-approve
-            elseif ($t->t_status === 'In_Progress') {
+                $rtlMap[$t->audit_id]->belum_rtl++;
+            } elseif ($t->status_fase === 'revisi_mandiri' || $t->t_status === 'In_Progress') {
                 if (empty($t->revisi_sent_at)) {
-                    // Belum kirim revisi → PERLU REVISI
                     if (!isset($revisiMap[$t->audit_id])) {
                         $revisiMap[$t->audit_id] = (object) ['id' => $t->audit_id, 'title' => $t->title, 'jumlah_revisi' => 0];
                     }
                     $revisiMap[$t->audit_id]->jumlah_revisi++;
                 } else {
-                    // Udah kirim revisi → MENUNGGU VERIFIKASI
                     if (!isset($waitingMap[$t->audit_id])) {
                         $waitingMap[$t->audit_id] = (object) ['id' => $t->audit_id, 'title' => $t->title, 'jumlah_menunggu' => 0];
                     }
@@ -74,7 +86,7 @@ class DashboardAuditeeController extends BaseController
         ]);
     }
 
-    // ===== HALAMAN DAFTAR AUDIT (BARU) =====
+    // ===== HALAMAN DAFTAR AUDIT =====
     public function daftarAudit()
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
@@ -82,8 +94,25 @@ class DashboardAuditeeController extends BaseController
         }
         $db = \Config\Database::connect();
         $userId = session()->get('id');
+        $today = date('Y-m-d');
 
-        $search  = trim((string) $this->request->getGet('q'));
+        $rawAudits = $db->table('audits')
+            ->select('id')
+            ->where('auditee_id', $userId)
+            ->get()->getResult();
+
+        $auditIds = array_column($rawAudits, 'id');
+
+        if (!empty($auditIds)) {
+            $db->table('temuans')
+                ->whereIn('audit_id', $auditIds)
+                ->where('status_fase', 'revisi_mandiri')
+                ->where('deadline IS NOT NULL')
+                ->where('deadline <', $today)
+                ->update(['status_fase' => 'rtl_approval']);
+        }
+
+        $search = trim((string) $this->request->getGet('q'));
         $fStatus = $this->request->getGet('status') ?? 'semua';
 
         $query = $db->table('audits')
@@ -96,35 +125,42 @@ class DashboardAuditeeController extends BaseController
             ->groupBy('audits.id')
             ->orderBy('audits.deadline', 'ASC');
 
-        if ($search !== '')  $query->like('audits.title', $search);
-        if ($fStatus !== 'semua') $query->where('audits.status', $fStatus);
+        if ($search !== '')
+            $query->like('audits.title', $search);
+        if ($fStatus !== 'semua')
+            $query->where('audits.status', $fStatus);
 
         $audits = $query->get()->getResult();
 
-        // Hitung kewajiban per audit (RTL / Revisi / Menunggu) + progres
         foreach ($audits as $a) {
             $temuans = $db->table('temuans')->where('audit_id', $a->id)->get()->getResult();
-            $rtl = 0; $revisi = 0; $menunggu = 0;
+            $rtl = 0;
+            $revisi = 0;
+            $menunggu = 0;
             foreach ($temuans as $x) {
-                if ($x->status === 'Open') $rtl++;
-                elseif ($x->status === 'In_Progress') {
-                    if (empty($x->revisi_sent_at)) $revisi++; else $menunggu++;
+                if ($x->status_fase === 'rtl_approval' || $x->status === 'Open')
+                    $rtl++;
+                elseif ($x->status_fase === 'revisi_mandiri' || $x->status === 'In_Progress') {
+                    if (empty($x->revisi_sent_at))
+                        $revisi++;
+                    else
+                        $menunggu++;
                 }
             }
-            $a->need_rtl    = $rtl;
+            $a->need_rtl = $rtl;
             $a->need_revisi = $revisi;
-            $a->waiting     = $menunggu;
-            $a->progress    = ((int) $a->total_questions > 0)
+            $a->waiting = $menunggu;
+            $a->progress = ((int) $a->total_questions > 0)
                 ? (int) round(((int) $a->answered_count / (int) $a->total_questions) * 100)
                 : 0;
         }
 
         return view('auditee/daftar_audit', [
-            'title'      => 'Daftar Audit Saya - Sistem Audit IT POLBAN',
+            'title' => 'Daftar Audit Saya - Sistem Audit IT POLBAN',
             'page_title' => 'Daftar Audit Saya',
-            'audits'     => $audits,
-            'search'     => $search,
-            'fStatus'    => $fStatus,
+            'audits' => $audits,
+            'search' => $search,
+            'fStatus' => $fStatus,
         ]);
     }
 
@@ -136,7 +172,6 @@ class DashboardAuditeeController extends BaseController
         $db = \Config\Database::connect();
         $userId = session()->get('id');
 
-        // SEMUA audit selesai masuk riwayat
         $riwayat = $db->table('audits')
             ->select('audits.*, users.fullname as auditor_name')
             ->join('users', 'users.id = audits.created_by_auditor', 'left')
@@ -152,7 +187,6 @@ class DashboardAuditeeController extends BaseController
         ]);
     }
 
-    // Halaman Log Aktivitas Auditee (baca dari activity_logs, HANYA milik user login)
     public function logAktivitas()
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
@@ -161,18 +195,15 @@ class DashboardAuditeeController extends BaseController
         $db = \Config\Database::connect();
         $userId = session()->get('id');
 
-        // Ambil filter dari URL
         $dari = $this->request->getGet('dari');
         $sampai = $this->request->getGet('sampai');
         $jenis = $this->request->getGet('jenis');
 
-        // Total aktivitas → HANYA milik auditee yang login
         $totalAktivitas = $db->table('activity_logs')
             ->where('user_id', $userId)
             ->where('role', 'auditee')
             ->countAllResults();
 
-        // Query dengan filter → HANYA milik auditee yang login
         $query = $db->table('activity_logs')
             ->where('user_id', $userId)
             ->where('role', 'auditee');
@@ -186,7 +217,6 @@ class DashboardAuditeeController extends BaseController
 
         $logs = $query->orderBy('created_at', 'DESC')->limit(100)->get()->getResult();
 
-        // Parse user agent mentah jadi "Chrome - Windows 10"
         foreach ($logs as $log) {
             $log->browser = parse_user_agent($log->user_agent ?? '');
         }

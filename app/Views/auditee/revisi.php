@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
-<h4 class="fw-bold mb-4" style="color: var(--primary-navy);">Revisi Jawaban</h4>
+<h4 class="fw-bold mb-4" style="color: var(--primary-navy);">Revisi Jawaban & Temuan</h4>
 
 <?php if (session()->getFlashdata('success')): ?>
     <div class="alert alert-success alert-dismissible fade show">
@@ -10,7 +10,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 <?php endif; ?>
-<!-- ⬇️ TEMPEL BLOK INI (peringatan file ditolak) ⬇️ -->
 <?php if (session()->getFlashdata('warning')): ?>
     <div class="alert alert-warning alert-dismissible fade show">
         <i class="bi bi-exclamation-triangle-fill me-2"></i><?= session()->getFlashdata('warning') ?>
@@ -32,7 +31,7 @@
 <div class="alert alert-danger">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
     <strong>Auditor menemukan ketidaksesuaian pada jawaban Anda.</strong>
-    Perbaiki jawaban dan/atau bukti di bawah ini, lalu simpan revisi.
+    Perbaiki jawaban dan/atau unggah bukti perbaikan di bawah ini.
 </div>
 
 <?php if (empty($temuans)): ?>
@@ -98,15 +97,47 @@
                             <textarea name="answers[<?= $t->assignment_id ?>]" class="form-control" rows="3"
                                 required><?= esc($t->answer ?? '') ?></textarea>
                         </div>
+
+                        <!-- Bagian Upload Bukti Perbaikan (Multi-Upload & JSON Support) -->
                         <div class="mb-2">
-                            <label class="form-label fw-bold">Upload Bukti Baru <span class="text-muted fw-normal">(jika
-                                    perlu)</span></label>
-                            <input type="file" name="evidence[<?= $t->assignment_id ?>]" class="form-control">
-                            <small class="text-muted">PDF, JPG, PNG, DOC, XLS, ZIP (maks 5MB)</small>
+                            <label class="form-label fw-bold">Upload Bukti Perbaikan Baru <span class="text-muted fw-normal">(bisa
+                                    pilih lebih dari satu file)</span></label>
+
+                            <!-- Input file dengan atribut multiple dan name array -->
+                            <input type="file" name="evidence[<?= $t->assignment_id ?>][]" class="form-control"
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip" multiple>
+                            <small class="text-muted">PDF, JPG, PNG, DOC, XLS, ZIP (Maks 5MB per file)</small>
+
+                            <!-- Menampilkan daftar file bukti sebelumnya secara rapi -->
                             <?php if (!empty($t->evidence_filename)): ?>
-                                <small class="d-block mt-1 text-muted">Bukti saat ini:
-                                    <?= esc($t->evidence_filename) ?>
-                                </small>
+                                <div class="mt-2">
+                                    <small class="text-muted d-block mb-1"><i class="bi bi-paperclip me-1"></i>File Bukti Saat
+                                        Ini:</small>
+                                    <?php
+                                    // Decode JSON dari database
+                                    $oldFiles = json_decode($t->evidence_filename, true);
+                                    if (!is_array($oldFiles)) {
+                                        $oldFiles = [$t->evidence_filename];
+                                    }
+                                    foreach ($oldFiles as $file):
+                                        if (empty($file))
+                                            continue;
+                                        ?>
+                                        <div class="d-flex align-items-center justify-content-between p-2 bg-light rounded border mb-1">
+                                            <div class="d-flex align-items-center gap-2 text-truncate">
+                                                <i class="bi bi-file-earmark-text text-primary"></i>
+                                                <span class="text-truncate small mb-0" style="max-width: 250px;" title="<?= esc($file) ?>">
+                                                    <?= esc($file) ?>
+                                                </span>
+                                            </div>
+                                            <!-- Tombol Lihat / Unduh file -->
+                                            <a href="<?= base_url('uploads/bukti_perbaikan/' . $file) ?>" target="_blank"
+                                                class="btn btn-sm btn-outline-primary py-0 px-2">
+                                                <i class="bi bi-eye me-1"></i>Lihat/Unduh
+                                            </a>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
                             <?php endif; ?>
                         </div>
                     <?php endif; ?>
@@ -123,9 +154,10 @@
     </form>
 <?php endif; ?>
 
-<!-- ⬇️ TAMBAHKAN BLOK DEBUG INI ⬇️ -->
+<!-- Blok Debug Info -->
 <?php if (session()->getFlashdata('debug_info')): ?>
-    <div class="alert alert-info alert-dismissible fade show border-info" style="background-color: #e7f3ff; border-left: 5px solid #0d6efd !important;">
+    <div class="alert alert-info alert-dismissible fade show border-info"
+        style="background-color: #e7f3ff; border-left: 5px solid #0d6efd !important;">
         <i class="bi bi-bug me-2"></i>
         <strong>Laporan Debug Sistem:</strong><br>
         <?= session()->getFlashdata('debug_info') ?>
@@ -148,31 +180,42 @@
             box._timer = setTimeout(function () { box.classList.add('d-none'); }, 10000);
         }
 
-        // 1) Cek begitu user memilih file
+        // 1) Cek begitu user memilih file (Mendukung Multiple Files)
         document.querySelectorAll('input[type="file"]').forEach(function (inp) {
             inp.addEventListener('change', function () {
-                var f = inp.files[0];
-                if (f && f.size > MAX) {
-                    var mb = (f.size / 1024 / 1024).toFixed(1);
-                    inp.value = ''; // file langsung dibuang dari pilihan
+                let oversizedFiles = [];
+                for (let i = 0; i < inp.files.length; i++) {
+                    let f = inp.files[i];
+                    if (f.size > MAX) {
+                        let mb = (f.size / 1024 / 1024).toFixed(1);
+                        oversizedFiles.push(f.name + ' (' + mb + ' MB)');
+                    }
+                }
+
+                if (oversizedFiles.length > 0) {
+                    inp.value = ''; // Reset input file
                     inp.classList.add('is-invalid');
                     setTimeout(function () { inp.classList.remove('is-invalid'); }, 5000);
-                    showWarning('File "' + f.name + '" berukuran ' + mb + ' MB — melebihi batas maksimal 5 MB, ' +
-                        'sehingga TIDAK diupload. Silakan kompres file atau bungkus menjadi ZIP terlebih dahulu.');
+                    showWarning('File berikut melebihi batas maksimal 5 MB: ' + oversizedFiles.join(', ') +
+                        '. Seluruh pilihan file pada input ini dibatalkan. Silakan kompres atau bungkus menjadi ZIP.');
                 }
             });
         });
 
-        // 2) Pengaman terakhir saat tombol submit ditekan
+        // 2) Pengaman terakhir saat tombol submit ditekan (Mendukung Multiple Files)
         document.querySelectorAll('form').forEach(function (form) {
             form.addEventListener('submit', function (e) {
                 var bad = [];
                 form.querySelectorAll('input[type="file"]').forEach(function (inp) {
-                    var f = inp.files[0];
-                    if (f && f.size > MAX) bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                    for (let i = 0; i < inp.files.length; i++) {
+                        let f = inp.files[i];
+                        if (f.size > MAX) {
+                            bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                        }
+                    }
                 });
                 if (bad.length) {
-                    e.preventDefault(); // batalkan pengiriman
+                    e.preventDefault(); // Batalkan pengiriman form
                     showWarning('File berikut melebihi 5 MB dan tidak ikut dikirim: ' + bad.join(', ') +
                         '. Silakan kompres atau bungkus menjadi ZIP terlebih dahulu.');
                 }

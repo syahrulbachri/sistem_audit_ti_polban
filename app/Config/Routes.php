@@ -98,6 +98,11 @@ $routes->get('/auditee/rtl/(:num)', 'Auditee\TindakLanjutController::rtl/$1');
 $routes->post('/auditee/rtl/save/(:num)', 'Auditee\TindakLanjutController::saveRtl/$1');
 $routes->get('/auditee/bukti/(:num)', 'Auditee\TindakLanjutController::bukti/$1');
 $routes->post('/auditee/bukti/save/(:num)', 'Auditee\TindakLanjutController::saveBukti/$1');
+// Rute untuk menampilkan halaman revisi (menggunakan parameter ID audit)
+$routes->get('auditee/revisi/(:num)', 'Auditee\FillAuditeeController::revisi/$1');
+
+// Rute untuk menyimpan revisi (POST form)
+$routes->post('auditee/revisi/save/(:num)', 'Auditee\FillAuditeeController::saveRevisi/$1');
 
 // ====================================================================
 // PIMPINAN ROUTES (Sudah digabung menjadi 1 block agar tidak duplikat)
@@ -108,7 +113,7 @@ $routes->group('pimpinan', function ($routes) {
     $routes->get('profile/edit', 'Pimpinan\PimpinanProfileController::edit');
     $routes->post('profile/update-identity', 'Pimpinan\PimpinanProfileController::updateIdentity');
     $routes->post('profile/update', 'Pimpinan\PimpinanProfileController::update');
-    
+
     $routes->get('daftar_lha', 'Pimpinan\MonitoringLHAController::index');
     $routes->get('lha', 'Pimpinan\LhaController::index');
     $routes->get('lha/review/(:segment)', 'Pimpinan\LhaController::review/$1');
@@ -116,14 +121,14 @@ $routes->group('pimpinan', function ($routes) {
     $routes->get('lha_detail/(:num)', 'Pimpinan\MonitoringLHAController::detail/$1');
     $routes->get('lha/download-evidence/(:num)', 'Pimpinan\LhaController::downloadEvidence/$1');
     $routes->post('lha/decide/(:segment)', 'Pimpinan\LhaController::decide/$1');
-    
+
     $routes->get('rtl', 'Pimpinan\RtlController::index');
     $routes->get('rtl/detail/(:segment)', 'Pimpinan\RtlController::detail/$1');
     $routes->get('rtl/view-bukti/(:num)', 'Pimpinan\RtlController::viewBukti/$1');
     $routes->get('rtl/download-bukti/(:num)', 'Pimpinan\RtlController::downloadBukti/$1');
     $routes->get('rtl/view-jawaban/(:num)', 'Pimpinan\RtlController::viewJawaban/$1');
     $routes->get('rtl/download-jawaban/(:num)', 'Pimpinan\RtlController::downloadJawaban/$1');
-    
+
     $routes->get('arsip', 'Pimpinan\ArsipController::index');
     $routes->get('activity-logs', 'Pimpinan\ActivityLogController::index');
 });

@@ -49,12 +49,11 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
     <div class="alert alert-info mb-4">
         <i class="bi bi-info-circle me-2"></i>
         Isi jawaban dan upload bukti pendukung (bisa pilih lebih dari satu file). Setelah klik <strong>"Kirim ke
-            Auditor"</strong>, jawaban akan
-        <strong>terkunci</strong>.
+            Auditor"</strong>, jawaban akan <strong>terkunci</strong>.
     </div>
 <?php endif; ?>
 
-<!-- Peringatan upload dari dalam website (bukan popup browser) -->
+<!-- Peringatan upload dari dalam website -->
 <div id="uploadWarning" class="alert alert-danger alert-dismissible fade show d-none shadow-sm" role="alert"
     style="border-left: 5px solid #dc3545;">
     <i class="bi bi-exclamation-octagon-fill me-2"></i>
@@ -121,7 +120,7 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
                     <?php endif; ?>
 
                     <?php if (!$locked): ?>
-                        <!-- Input file dengan atribut multiple dan name array -->
+                        <!-- Input file dengan atribut multiple dan name array yang wajib akurat -->
                         <input type="file" name="evidence[<?= $q->id ?>][]" class="form-control"
                             accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip" multiple>
                         <small class="text-muted">PDF, JPG, PNG, DOC, XLS, ZIP (Maks 5MB per file). Anda dapat memilih lebih
@@ -175,7 +174,7 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
             box._timer = setTimeout(function () { box.classList.add('d-none'); }, 10000);
         }
 
-        // 1) Cek begitu user memilih file (mendukung multiple files)
+        // Cek ukuran file saat dipilih
         document.querySelectorAll('input[type="file"]').forEach(function (inp) {
             inp.addEventListener('change', function () {
                 let oversizedFiles = [];
@@ -188,16 +187,15 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
                 }
 
                 if (oversizedFiles.length > 0) {
-                    inp.value = ''; // Reset pilihan file jika ada yang melebihi batas
                     inp.classList.add('is-invalid');
                     setTimeout(function () { inp.classList.remove('is-invalid'); }, 5000);
                     showWarning('File berikut melebihi batas maksimal 5 MB: ' + oversizedFiles.join(', ') +
-                        '. Seluruh pilihan file pada input ini dibatalkan. Silakan kompres atau jadikan ZIP.');
+                        '. Silakan kompres atau jadikan ZIP.');
                 }
             });
         });
 
-        // 2) Pengaman terakhir saat tombol submit ditekan
+        // Pengaman saat tombol submit ditekan
         document.querySelectorAll('form').forEach(function (form) {
             form.addEventListener('submit', function (e) {
                 var bad = [];
@@ -210,7 +208,7 @@ $locked = in_array($audit->status, ['menunggu_penilaian', 'selesai']);
                     }
                 });
                 if (bad.length) {
-                    e.preventDefault(); // batalkan pengiriman
+                    e.preventDefault();
                     showWarning('File berikut melebihi 5 MB dan tidak ikut dikirim: ' + bad.join(', ') +
                         '. Silakan kompres atau bungkus menjadi ZIP terlebih dahulu.');
                 }
