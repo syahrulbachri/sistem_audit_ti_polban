@@ -9,7 +9,6 @@ use Psr\Log\LoggerInterface;
 
 class DashboardAuditorController extends BaseController
 {
-
     public function index()
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditor') {
@@ -17,7 +16,6 @@ class DashboardAuditorController extends BaseController
         }
 
         $db = \Config\Database::connect();
-
         $auditorId = session()->get('id');
 
         $stats['aktif'] = $db->table('audits')->where('status', 'aktif')->where('created_by_auditor', $auditorId)->countAllResults();
@@ -70,12 +68,6 @@ class DashboardAuditorController extends BaseController
         if (!$audit) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
-
-        log_message('debug', '=== DETAIL AUDIT DEBUG ===');
-        log_message('debug', 'Audit ID: ' . $audit->id);
-        log_message('debug', 'Audit Title: ' . $audit->title);
-        log_message('debug', 'Audit Framework: [' . $audit->framework . ']');
-        log_message('debug', 'Audit Status: ' . $audit->status);
 
         $customQuestions = [];
         $standardQuestions = [];
@@ -451,12 +443,18 @@ class DashboardAuditorController extends BaseController
         }
 
         // =========================================================================
-        // 3. LOG & PROSES PEMBUATAN TEMUAN BARU (ALUR BARU: REVISI MANDIRI + DEADLINE)
+        // 3. PROSES PEMBUATAN TEMUAN BARU (CEK DEADLINE AUDIT OTOMATIS)
         // =========================================================================
         $findingsCreatedCount = 0;
+        $today = date('Y-m-d');
 
-        // Tentukan deadline revisi mandiri (default: 7 hari dari hari ini)
-        $defaultDeadline = date('Y-m-d', strtotime('+7 days'));
+        // Gunakan deadline dari tabel audits jika ada, jika kosong fallback +7 hari
+        $targetDeadline = ($audit && !empty($audit->deadline)) ? $audit->deadline : date('Y-m-d', strtotime('+7 days'));
+
+        // Cek apakah deadline sudah tiba atau terlewat (<= hari ini)
+        $isExpired = ($targetDeadline <= $today);
+        $initialStatus = $isExpired ? 'Open' : 'In_Progress';
+        $initialStatusFase = $isExpired ? 'rtl_approval' : 'revisi_mandiri';
 
         foreach ($findings as $assignmentId => $finding) {
             if (!empty($finding['deskripsi_temuan'])) {
@@ -473,10 +471,9 @@ class DashboardAuditorController extends BaseController
                 if ($existing) {
                     $db->table('temuans')->where('id', $existing->id)->update($dataTemuan);
                 } else {
-                    // 🚀 TAMBAHAN UNTUK ALUR BARU: Tambahkan status_fase dan deadline saat buat temuan baru
-                    $dataTemuan['status'] = 'In_Progress';
-                    $dataTemuan['status_fase'] = 'revisi_mandiri';
-                    $dataTemuan['deadline'] = $defaultDeadline;
+                    $dataTemuan['status'] = $initialStatus;
+                    $dataTemuan['status_fase'] = $initialStatusFase;
+                    $dataTemuan['deadline'] = $targetDeadline;
                     $dataTemuan['created_at'] = date('Y-m-d H:i:s');
 
                     $db->table('temuans')->insert($dataTemuan);
@@ -486,13 +483,13 @@ class DashboardAuditorController extends BaseController
         }
 
         if ($findingsCreatedCount > 0) {
-            log_activity('CREATE', 'temuans', 'Membuat ' . $findingsCreatedCount . ' temuan ketidaksesuaian baru pada audit "' . $auditTitle . '" (Fase: Revisi Mandiri).');
+            $faseLabel = $isExpired ? 'RTL Approval (Deadline Terlewat)' : 'Revisi Mandiri';
+            log_activity('CREATE', 'temuans', 'Membuat ' . $findingsCreatedCount . ' temuan ketidaksesuaian baru pada audit "' . $auditTitle . '" (Fase: ' . $faseLabel . ').');
         }
 
         // 4. Update Status Audit
         if ($isFinal) {
             $framework = $db->table('frameworks')->where('nama', $audit->framework)->get()->getRow();
-            $maxScore = $framework ? (int) $framework->max_score : 1;
             $scoringType = $framework ? $framework->scoring_type : 'binary';
 
             $allScores = $db->table('audit_question_assignments')->select('score')->where('audit_id', $id)->get()->getResult();
@@ -512,7 +509,6 @@ class DashboardAuditorController extends BaseController
                 $finalScore = $count > 0 ? round(($total / $count), 2) : 0;
             }
 
-            // Jika ada temuan ketidaksesuaian, ubah status audit ke 'revisi' agar auditee dapat langsung merevisi
             $hasFindings = $db->table('temuans')->where('audit_id', $id)->countAllResults() > 0;
             $nextAuditStatus = $hasFindings ? 'revisi' : 'selesai';
 
