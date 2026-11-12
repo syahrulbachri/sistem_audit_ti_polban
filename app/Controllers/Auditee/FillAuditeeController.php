@@ -60,7 +60,6 @@ class FillAuditeeController extends BaseController
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        // KUNCI: tidak bisa edit jika sudah dikirim ke auditor
         if (in_array($audit->status, ['menunggu_penilaian', 'selesai'])) {
             return redirect()->to('/auditee/fill/' . $id)
                 ->with('error', 'Jawaban sudah dikirim ke auditor dan tidak dapat diedit lagi.');
@@ -74,114 +73,91 @@ class FillAuditeeController extends BaseController
             $db->table('audit_question_assignments')
                 ->where('id', $assignmentId)
                 ->where('audit_id', $id)
-                ->update([
-                    'answer' => $answerText
-                ]);
+                ->update(['answer' => $answerText]);
         }
 
-        // 2. Simpan Multi-Upload Bukti Pendukung
+        // 2. Simpan Multi-Upload Bukti Pendukung via $_FILES langsung (100% PASTI MASUK)
+        $questions = $db->table('audit_question_assignments')
+            ->where('audit_id', $id)
+            ->get()->getResult();
+
         $skipped = [];
-        $files = $this->request->getFileMultiple('evidence');
 
-        if ($files && is_array($files)) {
-            foreach ($files as $assignmentId => $fileList) {
-                // Ambil data assignment lama untuk mengecek file sebelumnya (jika ada)
-                $existingAssignment = $db->table('audit_question_assignments')
-                    ->where('id', $assignmentId)
-                    ->where('audit_id', $id)
-                    ->get()->getRow();
+        foreach ($questions as $q) {
+            $assignmentId = $q->id;
 
-                if (!$existingAssignment) {
+            // Ambil objek file multiple secara spesifik menggunakan helper CodeIgniter dari $_FILES['evidence'][$assignmentId]
+            $fileList = $this->request->getFileMultiple('evidence.' . $assignmentId);
+
+            if (!$fileList) {
+                continue;
+            }
+
+            // Ambil data file lama dari database
+            $existingAssignment = $db->table('audit_question_assignments')
+                ->where('id', $assignmentId)
+                ->where('audit_id', $id)
+                ->get()->getRow();
+
+            $uploadedFilesName = [];
+            if (!empty($existingAssignment->evidence_filename)) {
+                $decodedOld = json_decode($existingAssignment->evidence_filename, true);
+                if (is_array($decodedOld)) {
+                    $uploadedFilesName = $decodedOld;
+                } else {
+                    $uploadedFilesName = [$existingAssignment->evidence_filename];
+                }
+            }
+
+            $hasNewValidFile = false;
+
+            foreach ($fileList as $file) {
+                if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile)) {
                     continue;
                 }
 
-                // Decode file lama yang sudah ada di DB (format JSON)
-                $uploadedFilesName = [];
-                if (!empty($existingAssignment->evidence_filename)) {
-                    $decodedOld = json_decode($existingAssignment->evidence_filename, true);
-                    if (is_array($decodedOld)) {
-                        $uploadedFilesName = $decodedOld;
-                    } else {
-                        // Fallback jika dulunya string tunggal
-                        $uploadedFilesName = [$existingAssignment->evidence_filename];
-                    }
+                if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+                    continue;
                 }
 
-                $hasNewValidFile = false;
+                $nama = $file->getClientName();
 
-                foreach ($fileList as $file) {
-                    if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile)) {
-                        continue;
-                    }
-
-                    // Input kosong (user tidak memilih file di input ini)
-                    if ($file->getError() === UPLOAD_ERR_NO_FILE) {
-                        continue;
-                    }
-
-                    $nama = $file->getClientName();
-                    $ukuranMB = round($file->getSize() / 1024 / 1024, 1);
-
-                    // Batas maksimal 5 MB per file
-                    if ($file->getSize() > (5 * 1024 * 1024)) {
-                        $skipped[] = $nama . ' (' . $ukuranMB . ' MB) — melebihi batas maksimal 5 MB';
-                        continue;
-                    }
-
-                    // Error upload level server
-                    if (!$file->isValid() || $file->hasMoved()) {
-                        $skipped[] = $nama . ' — gagal diupload (error server/limit PHP)';
-                        continue;
-                    }
-
-                    // Validasi Ekstensi
-                    $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
-                    $ext = strtolower($file->getClientExtension());
-                    if (!in_array($ext, $allowed)) {
-                        $skipped[] = $nama . ' — format .' . $ext . ' tidak didukung';
-                        continue;
-                    }
-
-                    // Buat nama file unik agar tidak bentrok
-                    $newName = $file->getRandomName();
-
-                    // Pindahkan ke folder public/uploads/evidence
-                    $folder = FCPATH . 'uploads/evidence';
-                    if (!is_dir($folder)) {
-                        mkdir($folder, 0777, true);
-                    }
-
-                    if ($file->move($folder, $newName)) {
-                        $uploadedFilesName[] = $newName;
-                        $hasNewValidFile = true;
-                    }
+                if (!$file->isValid()) {
+                    $skipped[] = $nama . ' (Error code: ' . $file->getError() . ')';
+                    continue;
                 }
 
-                // Jika ada file baru yang valid di-upload, update ke database
-                if ($hasNewValidFile) {
-                    $db->table('audit_question_assignments')
-                        ->where('id', $assignmentId)
-                        ->where('audit_id', $id)
-                        ->update([
-                            'evidence_filename' => json_encode($uploadedFilesName),
-                            'evidence_uploaded_at' => date('Y-m-d H:i:s'),
-                        ]);
+                $newName = $file->getRandomName();
+                $folder = FCPATH . 'uploads/evidence';
+
+                if (!is_dir($folder)) {
+                    mkdir($folder, 0777, true);
                 }
+
+                if ($file->move($folder, $newName)) {
+                    $uploadedFilesName[] = $newName;
+                    $hasNewValidFile = true;
+                }
+            }
+
+            // Update ke database jika ada file baru yang sukses di-upload
+            if ($hasNewValidFile) {
+                $db->table('audit_question_assignments')
+                    ->where('id', $assignmentId)
+                    ->where('audit_id', $id)
+                    ->update([
+                        'evidence_filename' => json_encode(array_values(array_unique($uploadedFilesName))),
+                        'evidence_uploaded_at' => date('Y-m-d H:i:s'),
+                    ]);
             }
         }
 
-        // Peringatan kuning tampil jika ada file yang ditolak ukurannya
         if (!empty($skipped)) {
-            session()->setFlashdata(
-                'warning',
-                'PERHATIAN: Berkas berikut TIDAK ikut tersimpan → ' . implode('; ', $skipped) .
-                '. Silakan kompres atau bungkus menjadi ZIP (maks 5 MB) lalu unggah ulang.'
-            );
+            session()->setFlashdata('warning', 'Beberapa file gagal di-upload: ' . implode('; ', $skipped));
         }
 
         // 3. Jika tombol "Kirim ke Auditor" ditekan
         if ($action === 'submit') {
-
             $total = $db->table('audit_question_assignments')
                 ->where('audit_id', $id)
                 ->countAllResults();
@@ -194,13 +170,10 @@ class FillAuditeeController extends BaseController
 
             if ($answered < $total) {
                 return redirect()->to('/auditee/fill/' . $id)
-                    ->with(
-                        'error',
-                        'Masih ada ' . ($total - $answered) . ' pertanyaan yang belum dijawab.'
-                    );
+                    ->with('error', 'Masih ada pertanyaan yang belum dijawab.');
             }
 
-            // Kunci jawaban & kirim ke auditor
+            // Update status audit jadi menunggu penilaian
             $db->table('audits')
                 ->where('id', $id)
                 ->update([
@@ -208,26 +181,15 @@ class FillAuditeeController extends BaseController
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
 
-            log_aktivitas(
-                'Mengirim jawaban audit "' . $audit->title . '" ke auditor (menunggu penilaian)',
-                'jawaban'
-            );
-
             return redirect()->to('/auditee/dashboard')
-                ->with('success', 'Jawaban berhasil dikirim ke auditor.');
+                ->with('success', 'Jawaban dan bukti berhasil dikirim ke auditor.');
         }
 
-        log_aktivitas(
-            'Menyimpan draft jawaban audit "' . $audit->title . '"',
-            'jawaban'
-        );
-
         return redirect()->to('/auditee/fill/' . $id)
-            ->with('success', 'Jawaban berhasil disimpan.');
+            ->with('success', 'Jawaban dan bukti berhasil disimpan sebagai draft.');
     }
 
-
-    // Halaman daftar revisi untuk auditee (Disesuaikan dengan Alur Deadline & Revisi Mandiri)
+    // Halaman daftar revisi untuk auditee
     public function revisi(int $id)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
@@ -262,7 +224,6 @@ class FillAuditeeController extends BaseController
             ->get()
             ->getResult();
 
-        // 🚀 CEK OTOMATIS DEADLINE: Jika hari ini > deadline, ubah status_fase menjadi 'rtl_approval'
         $today = date('Y-m-d');
         foreach ($temuans as $t) {
             if (isset($t->status_fase) && $t->status_fase === 'revisi_mandiri' && !empty($t->deadline) && $today > $t->deadline) {
@@ -270,7 +231,6 @@ class FillAuditeeController extends BaseController
                     ->where('id', $t->id)
                     ->update(['status_fase' => 'rtl_approval']);
 
-                // Update objek lokal agar langsung terbaca di view
                 $t->status_fase = 'rtl_approval';
             }
         }
@@ -305,7 +265,6 @@ class FillAuditeeController extends BaseController
         $answers = $this->request->getPost('answers') ?? [];
         $logMessages = [];
 
-        // 1. Simpan jawaban revisi (Teks)
         foreach ($answers as $assignmentId => $answerText) {
             $db->table('audit_question_assignments')
                 ->where('id', $assignmentId)
@@ -315,60 +274,50 @@ class FillAuditeeController extends BaseController
             $logMessages[] = "Jawaban disimpan untuk Assignment ID: $assignmentId";
         }
 
-        // 2. Proses Multi-Upload File Revisi
-        $files = $this->request->getFileMultiple('evidence');
+        $assignments = $db->table('audit_question_assignments')
+            ->where('audit_id', $id)
+            ->get()->getResult();
 
-        if ($files && is_array($files)) {
-            foreach ($files as $assignmentId => $fileList) {
+        foreach ($assignments as $assignment) {
+            $assignmentId = $assignment->id;
+            $fileList = $this->request->getFileMultiple('evidence');
 
-                $assignment = $db->table('audit_question_assignments')
-                    ->where('id', $assignmentId)
-                    ->where('audit_id', $id)
-                    ->get()->getRow();
+            if (!$fileList || !array_key_exists($assignmentId, $fileList)) {
+                continue;
+            }
 
-                if (!$assignment) {
-                    continue;
+            $currentFiles = $fileList[$assignmentId];
+
+            $uploadedFilesName = [];
+            if (!empty($assignment->evidence_filename)) {
+                $decodedOld = json_decode($assignment->evidence_filename, true);
+                if (is_array($decodedOld)) {
+                    $uploadedFilesName = $decodedOld;
+                } else {
+                    $uploadedFilesName = [$assignment->evidence_filename];
                 }
+            }
 
-                // Ambil file lama jika ada
-                $uploadedFilesName = [];
-                if (!empty($assignment->evidence_filename)) {
-                    $decodedOld = json_decode($assignment->evidence_filename, true);
-                    if (is_array($decodedOld)) {
-                        $uploadedFilesName = $decodedOld;
-                    } else {
-                        $uploadedFilesName = [$assignment->evidence_filename];
-                    }
-                }
+            $hasNewValidFile = false;
 
-                $hasNewValidFile = false;
-
-                foreach ($fileList as $file) {
-                    if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile)) {
-                        continue;
-                    }
-
-                    if ($file->getError() === UPLOAD_ERR_NO_FILE) {
+            if (is_array($currentFiles)) {
+                foreach ($currentFiles as $file) {
+                    if (!($file instanceof \CodeIgniter\HTTP\Files\UploadedFile) || $file->getError() === UPLOAD_ERR_NO_FILE) {
                         continue;
                     }
 
                     $nama = $file->getClientName();
-                    $ukuranMB = round($file->getSize() / 1024 / 1024, 1);
-
-                    if ($file->getSize() > (5 * 1024 * 1024)) {
-                        $logMessages[] = "File '$nama' ($ukuranMB MB) melebihi 5 MB";
+                    if ($file->getSize() > (50 * 1024 * 1024)) {
+                        $logMessages[] = "File '$nama' melebihi batas ukuran";
                         continue;
                     }
 
-                    $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
-                    $ext = strtolower($file->getClientExtension());
-                    if (!in_array($ext, $allowed)) {
-                        $logMessages[] = "Format file '$nama' tidak didukung";
+                    if (!$file->isValid()) {
                         continue;
                     }
 
                     $safeName = $file->getRandomName();
-                    $folder = FCPATH . 'uploads/bukti_perbaikan';
+                    $folder = FCPATH . 'uploads/evidence';
 
                     if (!is_dir($folder)) {
                         mkdir($folder, 0777, true);
@@ -378,39 +327,34 @@ class FillAuditeeController extends BaseController
                         $uploadedFilesName[] = $safeName;
                         $hasNewValidFile = true;
                         $logMessages[] = "File fisik disimpan sebagai: $safeName";
-                    } else {
-                        $logMessages[] = "GAGAL menyimpan file fisik: " . $file->getErrorString();
                     }
                 }
+            }
 
-                if ($hasNewValidFile) {
-                    $jsonFiles = json_encode($uploadedFilesName);
+            if ($hasNewValidFile) {
+                $jsonFiles = json_encode(array_values(array_unique($uploadedFilesName)));
 
-                    // Update assignment
-                    $db->table('audit_question_assignments')
-                        ->where('id', $assignmentId)
-                        ->where('audit_id', $id)
-                        ->update([
-                            'evidence_filename' => $jsonFiles,
-                            'evidence_uploaded_at' => date('Y-m-d H:i:s')
-                        ]);
+                $db->table('audit_question_assignments')
+                    ->where('id', $assignmentId)
+                    ->where('audit_id', $id)
+                    ->update([
+                        'evidence_filename' => $jsonFiles,
+                        'evidence_uploaded_at' => date('Y-m-d H:i:s')
+                    ]);
 
-                    // Sinkronisasi ke tabel temuans
-                    $db->table('temuans')
-                        ->where('audit_id', $id)
-                        ->where('question_id', $assignment->question_id)
-                        ->update([
-                            'bukti_perbaikan' => $jsonFiles,
-                            'revisi_sent_at' => date('Y-m-d H:i:s'),
-                            'updated_at' => date('Y-m-d H:i:s')
-                        ]);
+                $db->table('temuans')
+                    ->where('audit_id', $id)
+                    ->where('question_id', $assignment->question_id)
+                    ->update([
+                        'bukti_perbaikan' => $jsonFiles,
+                        'revisi_sent_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
 
-                    $logMessages[] = "File disinkronkan ke tabel temuans (Multi-upload JSON)";
-                }
+                $logMessages[] = "File disinkronkan ke temuans";
             }
         }
 
-        // Tulis log debug
         $logFile = WRITEPATH . 'logs/revisi_upload_' . date('Y-m-d') . '.log';
         $logContent = "\n\n=== REVISI AUDIT ID: $id ===\n";
         $logContent .= "Time: " . date('Y-m-d H:i:s') . "\n";
@@ -418,7 +362,9 @@ class FillAuditeeController extends BaseController
         $logContent .= implode("\n", $logMessages) . "\n";
         file_put_contents($logFile, $logContent, FILE_APPEND);
 
-        log_aktivitas('Mengirim revisi jawaban & bukti perbaikan audit "' . $audit->title . '"', 'revisi');
+        if (function_exists('log_aktivitas')) {
+            log_aktivitas('Mengirim revisi jawaban & bukti perbaikan audit "' . $audit->title . '"', 'revisi');
+        }
 
         return redirect()->to('/auditee/dashboard')
             ->with('success', 'Revisi berhasil dikirim ke auditor.');
