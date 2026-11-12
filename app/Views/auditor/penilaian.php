@@ -13,6 +13,12 @@
         background-color: #fff5f5;
     }
 
+    /* Highlight khusus untuk Request Improve */
+    .question-card.is-improve-request {
+        border-left-color: #0dcaf0;
+        background-color: #f0fdff;
+    }
+
     .finding-box {
         display: none;
         background: #fff5f5;
@@ -105,7 +111,7 @@ foreach ($items as $item) {
 // Cek apakah audit sudah melewati deadline
 $deadline = strtotime($audit->deadline);
 $today = time();
-$isPastDeadline = ($today > $deadline);
+$isPastDeadline = ($today >= $deadline); // Menggunakan >= agar pas di hari H sudah dianggap lewat
 ?>
 
 <?php if ($unansweredCount > 0): ?>
@@ -119,31 +125,32 @@ $isPastDeadline = ($today > $deadline);
 
 <div class="alert alert-info mb-4">
     <i class="bi bi-info-circle me-2"></i>
-    <strong>Info:</strong> 
+    <strong>Info:</strong>
     <?php if ($isPastDeadline): ?>
-        Audit sudah melewati deadline. Tombol "Buat Temuan" akan membuat temuan resmi.
+        <span class="text-danger fw-bold">Audit sudah melewati deadline (<?= date('d M Y', $deadline) ?>).</span><br>
+        Tombol "Buat Temuan" akan membuat temuan resmi ke dalam sistem. Jawaban auditee sudah terkunci (Read-Only).
     <?php else: ?>
-        Audit masih dalam periode aktif (sampai <?= date('d M Y', $deadline) ?>). 
-        Tombol "Catat untuk Revisi" akan menandai jawaban yang perlu diperbaiki auditee.
+        Audit masih dalam periode aktif (sampai <strong><?= date('d M Y', $deadline) ?></strong>).<br>
+        Tombol "Minta Revisi" akan menandai jawaban yang perlu diperbaiki auditee agar nilainya meningkat.
     <?php endif; ?>
 </div>
 
-<form action="/audit/simpan-nilai/<?= $audit->id ?>" method="post" id="formPenilaian">
+<form action="<?= site_url('audit/simpan-nilai/' . $audit->id) ?>" method="post" id="formPenilaian">
     <?= csrf_field() ?>
 
     <?php
     $questionNumber = 1;
     foreach ($items as $item):
-        $scoreValue = ($item->score === null || $item->score === '') ? null : (int) $item->score;
+        $scoreValue = ($item->score === null || $item->score === '') ? null : (float) $item->score;
         $showFindingBtn = false;
         $hasFindingClass = '';
         $btnDisabled = '';
         $btnClass = 'btn-outline-secondary';
-        $btnText = $isPastDeadline ? 'Buat Temuan' : 'Catat untuk Revisi';
+        $btnText = $isPastDeadline ? 'Buat Temuan' : 'Minta Revisi';
         $btnIcon = $isPastDeadline ? 'bi-exclamation-triangle' : 'bi-arrow-repeat';
 
-        // Cek apakah sudah ada temuan/revisi untuk question ini
-        $hasExistingFinding = isset($findingQuestionIds[$item->question_id]);
+        // Cek apakah sudah ada temuan/revisi untuk question ini (berdasarkan needs_revision)
+        $hasExistingFinding = (($item->needs_revision ?? 0) == 1);
 
         if ($audit->framework === 'ISO 27001') {
             if ($scoreValue === 0) {
@@ -161,19 +168,30 @@ $isPastDeadline = ($today > $deadline);
             $showFindingBtn = true;
             $btnClass = $isPastDeadline ? 'btn-outline-danger' : 'btn-outline-warning';
         }
+
+        // Cek jika ada request improve dari auditee
+        $isImproveRequest = !empty($item->is_improve_request ?? 0);
+        $improveClass = $isImproveRequest ? 'is-improve-request' : '';
     ?>
         <?php $isUnanswered = empty($item->answer); ?>
-        <div class="card question-card <?= $hasFindingClass ?> <?= $isUnanswered ? 'border-danger' : '' ?>"
+        <div class="card question-card <?= $hasFindingClass ?> <?= $improveClass ?> <?= $isUnanswered ? 'border-danger' : '' ?>"
             id="question-<?= $item->assignment_id ?>"
             style="<?= $isUnanswered ? 'opacity: 0.6;' : '' ?>">
             <div class="card-header bg-white py-3">
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h6 class="fw-bold mb-0">
                         <span class="badge bg-primary me-2"><?= $questionNumber ?></span>
                         <code><?= esc($item->clause_code) ?></code>
                         <?php if ($isUnanswered): ?>
                             <span class="badge bg-danger ms-2">
                                 <i class="bi bi-exclamation-circle me-1"></i>Belum Dijawab
+                            </span>
+                        <?php endif; ?>
+
+                        <!-- BADGE REQUEST IMPROVE (BARU) -->
+                        <?php if ($isImproveRequest): ?>
+                            <span class="badge bg-info text-dark ms-2">
+                                <i class="bi bi-arrow-up-circle me-1"></i>Request Improve
                             </span>
                         <?php endif; ?>
                     </h6>
@@ -190,58 +208,57 @@ $isPastDeadline = ($today > $deadline);
                         <strong class="text-primary"><i class="bi bi-reply me-2"></i>Jawaban Auditee:</strong>
                         <p class="mb-0 mt-2"><?= nl2br(esc($item->answer)) ?></p>
 
-                        <!-- Bukti yang Diupload -->
-                        <?php if (!empty($item->evidence_filename)): ?>
+                        <!-- Bukti yang Diupload (Support Multi-File) -->
+                        <?php
+                        // 1. Decode JSON menjadi Array
+                        $evidenceFiles = [];
+                        if (!empty($item->evidence_filename)) {
+                            $decoded = json_decode($item->evidence_filename, true);
+                            $evidenceFiles = is_array($decoded) ? $decoded : [$item->evidence_filename]; // Fallback jika data lama single string
+                        }
+                        ?>
+
+                        <?php if (!empty($evidenceFiles)): ?>
                             <div class="evidence-box">
-                                <strong class="text-primary"><i class="bi bi-paperclip me-2"></i>Bukti:</strong>
+                                <strong class="text-primary"><i class="bi bi-paperclip me-2"></i>Bukti Pendukung (<?= count($evidenceFiles) ?> File):</strong>
                                 <div class="mt-2">
-                                    <?php
-                                    $ext = strtolower(pathinfo($item->evidence_filename, PATHINFO_EXTENSION));
-                                    $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif']);
-                                    $isPDF = ($ext === 'pdf');
-                                    ?>
+                                    <?php foreach ($evidenceFiles as $fileName): ?>
+                                        <?php
+                                        // 2. Cek ekstensi per file
+                                        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                                        $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp']);
+                                        $isPDF = ($ext === 'pdf');
 
-                                    <?php if ($isImage): ?>
-                                        <img src="/auditor/view-evidence/<?= $item->assignment_id ?>"
-                                            alt="<?= esc($item->evidence_filename) ?>"
-                                            class="evidence-thumbnail"
-                                            onclick="showPreviewModal('/auditor/view-evidence/<?= $item->assignment_id ?>', '<?= esc($item->evidence_filename) ?>', 'image')">
-                                        <div class="mt-2">
-                                            <small class="text-muted"><?= esc($item->evidence_filename) ?></small>
-                                        </div>
+                                        // 3. Buat URL dengan parameter ?file= agar controller tahu file mana yang diminta
+                                        $fileUrl = base_url('auditor/view-evidence/' . $item->assignment_id . '?file=' . urlencode($fileName));
+                                        ?>
 
-                                    <?php elseif ($isPDF): ?>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-file-pdf text-danger fs-3"></i>
-                                            <div>
-                                                <strong><?= esc($item->evidence_filename) ?></strong>
-                                                <br><small class="text-muted">PDF Document</small>
-                                            </div>
+                                        <div class="d-flex align-items-center gap-2 mb-2 p-2 bg-white rounded border">
+                                            <?php if ($isImage): ?>
+                                                <i class="bi bi-image text-primary fs-4"></i>
+                                                <span class="small flex-grow-1 text-truncate" style="max-width: 200px;" title="<?= esc($fileName) ?>"><?= esc($fileName) ?></span>
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="showPreviewModal('<?= $fileUrl ?>', '<?= esc($fileName) ?>', 'image')">
+                                                    <i class="bi bi-eye"></i> Preview
+                                                </button>
+                                            <?php elseif ($isPDF): ?>
+                                                <i class="bi bi-file-pdf text-danger fs-4"></i>
+                                                <span class="small flex-grow-1 text-truncate" style="max-width: 200px;" title="<?= esc($fileName) ?>"><?= esc($fileName) ?></span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="showPreviewModal('<?= $fileUrl ?>', '<?= esc($fileName) ?>', 'pdf')">
+                                                    <i class="bi bi-eye"></i> Preview PDF
+                                                </button>
+                                            <?php else: ?>
+                                                <i class="bi bi-file-earmark text-secondary fs-4"></i>
+                                                <span class="small flex-grow-1 text-truncate" style="max-width: 200px;" title="<?= esc($fileName) ?>"><?= esc($fileName) ?></span>
+                                                <a href="<?= $fileUrl ?>" class="btn btn-sm btn-outline-secondary" download>
+                                                    <i class="bi bi-download"></i> Download
+                                                </a>
+                                            <?php endif; ?>
                                         </div>
-                                        <div class="mt-2">
-                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="showPreviewModal('/auditor/view-evidence/<?= $item->assignment_id ?>', '<?= esc($item->evidence_filename) ?>', 'pdf')">
-                                                <i class="bi bi-eye me-1"></i>Preview PDF
-                                            </button>
-                                        </div>
-
-                                    <?php else: ?>
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-file-earmark text-primary fs-3"></i>
-                                            <div>
-                                                <strong><?= esc($item->evidence_filename) ?></strong>
-                                                <br><small class="text-muted">File Document</small>
-                                            </div>
-                                        </div>
-                                        <div class="mt-2">
-                                            <a href="/auditor/view-evidence/<?= $item->assignment_id ?>" class="btn btn-sm btn-outline-primary">
-                                                <i class="bi bi-download me-1"></i>Download
-                                            </a>
-                                        </div>
-                                    <?php endif; ?>
+                                    <?php endforeach; ?>
 
                                     <?php if (!empty($item->evidence_uploaded_at)): ?>
                                         <small class="text-muted d-block mt-2">
-                                            <i class="bi bi-clock me-1"></i>Uploaded: <?= date('d M Y H:i', strtotime($item->evidence_uploaded_at)) ?>
+                                            <i class="bi bi-clock me-1"></i>Terakhir diupdate: <?= date('d M Y H:i', strtotime($item->evidence_uploaded_at)) ?>
                                         </small>
                                     <?php endif; ?>
                                 </div>
@@ -344,42 +361,54 @@ $isPastDeadline = ($today > $deadline);
 
                             <input type="hidden" name="findings[<?= $item->assignment_id ?>][question_id]" value="<?= $item->question_id ?>">
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small">Tingkat Risiko <span class="text-danger">*</span></label>
-                                <div class="risk-selector">
-                                    <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Rendah"
-                                        id="risk-rendah-<?= $item->assignment_id ?>" class="d-none">
-                                    <label for="risk-rendah-<?= $item->assignment_id ?>" class="badge bg-success">🟢 Rendah</label>
+                            <?php if ($isPastDeadline): ?>
+                                <!-- FORM TEMUAN (Setelah Deadline) - Ada Tingkat Risiko -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Tingkat Risiko <span class="text-danger">*</span></label>
+                                    <div class="risk-selector">
+                                        <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Rendah"
+                                            id="risk-rendah-<?= $item->assignment_id ?>" class="d-none">
+                                        <label for="risk-rendah-<?= $item->assignment_id ?>" class="badge bg-success">🟢 Rendah</label>
 
-                                    <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Sedang"
-                                        id="risk-sedang-<?= $item->assignment_id ?>" class="d-none" checked>
-                                    <label for="risk-sedang-<?= $item->assignment_id ?>" class="badge bg-warning text-dark">🟡 Sedang</label>
+                                        <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Sedang"
+                                            id="risk-sedang-<?= $item->assignment_id ?>" class="d-none" checked>
+                                        <label for="risk-sedang-<?= $item->assignment_id ?>" class="badge bg-warning text-dark">🟡 Sedang</label>
 
-                                    <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Tinggi"
-                                        id="risk-tinggi-<?= $item->assignment_id ?>" class="d-none">
-                                    <label for="risk-tinggi-<?= $item->assignment_id ?>" class="badge bg-danger">🔴 Tinggi</label>
+                                        <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Tinggi"
+                                            id="risk-tinggi-<?= $item->assignment_id ?>" class="d-none">
+                                        <label for="risk-tinggi-<?= $item->assignment_id ?>" class="badge bg-danger">🔴 Tinggi</label>
 
-                                    <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Kritis"
-                                        id="risk-kritis-<?= $item->assignment_id ?>" class="d-none">
-                                    <label for="risk-kritis-<?= $item->assignment_id ?>" class="badge bg-dark"> Kritis</label>
+                                        <input type="radio" name="findings[<?= $item->assignment_id ?>][tingkat_risiko]" value="Kritis"
+                                            id="risk-kritis-<?= $item->assignment_id ?>" class="d-none">
+                                        <label for="risk-kritis-<?= $item->assignment_id ?>" class="badge bg-dark">⚫ Kritis</label>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small">
-                                    <?= $isPastDeadline ? 'Deskripsi Temuan' : 'Alasan Perlu Revisi' ?> <span class="text-danger">*</span>
-                                </label>
-                                <textarea name="findings[<?= $item->assignment_id ?>][deskripsi_temuan]" class="form-control form-control-sm" rows="3" 
-                                    placeholder="<?= $isPastDeadline ? 'Jelaskan ketidaksesuaian yang ditemukan...' : 'Jelaskan mengapa jawaban ini perlu diperbaiki...' ?>"></textarea>
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Deskripsi Temuan <span class="text-danger">*</span></label>
+                                    <textarea name="findings[<?= $item->assignment_id ?>][deskripsi_temuan]" class="form-control form-control-sm" rows="3"
+                                        placeholder="Jelaskan ketidaksesuaian yang ditemukan..."></textarea>
+                                </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold small">
-                                    <?= $isPastDeadline ? 'Rekomendasi Perbaikan' : 'Saran Perbaikan' ?> <span class="text-danger">*</span>
-                                </label>
-                                <textarea name="findings[<?= $item->assignment_id ?>][rekomendasi]" class="form-control form-control-sm" rows="2" 
-                                    placeholder="<?= $isPastDeadline ? 'Berikan rekomendasi perbaikan...' : 'Berikan saran untuk perbaikan...' ?>"></textarea>
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Rekomendasi Perbaikan <span class="text-danger">*</span></label>
+                                    <textarea name="findings[<?= $item->assignment_id ?>][rekomendasi]" class="form-control form-control-sm" rows="2"
+                                        placeholder="Berikan rekomendasi perbaikan..."></textarea>
+                                </div>
+                            <?php else: ?>
+                                <!-- FORM REVISI (Sebelum Deadline) - TANPA Tingkat Risiko -->
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Alasan Perlu Revisi <span class="text-danger">*</span></label>
+                                    <textarea name="findings[<?= $item->assignment_id ?>][deskripsi_temuan]" class="form-control form-control-sm" rows="3"
+                                        placeholder="Jelaskan mengapa jawaban ini perlu diperbaiki..."></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold small">Saran Perbaikan <span class="text-danger">*</span></label>
+                                    <textarea name="findings[<?= $item->assignment_id ?>][rekomendasi]" class="form-control form-control-sm" rows="2"
+                                        placeholder="Berikan saran untuk perbaikan..."></textarea>
+                                </div>
+                            <?php endif; ?>
 
                             <button type="button" class="btn btn-sm btn-danger" onclick="markFindingAsSaved(<?= $item->assignment_id ?>)">
                                 <i class="bi bi-save me-2"></i>Simpan <?= $isPastDeadline ? 'Temuan' : 'Revisi' ?>
@@ -392,9 +421,6 @@ $isPastDeadline = ($today > $deadline);
                         <div class="alert alert-success py-2 px-3 mt-3 mb-0 small">
                             <i class="bi bi-check-circle me-1"></i>
                             <strong><?= $isPastDeadline ? 'Temuan' : 'Revisi' ?> sudah dicatat.</strong>
-                            <?php if (!empty($findingQuestionIds[$item->question_id])): ?>
-                                Tingkat Risiko: <strong><?= esc($findingQuestionIds[$item->question_id]->tingkat_risiko) ?></strong>
-                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -605,7 +631,10 @@ $isPastDeadline = ($today > $deadline);
 
                 const firstEmpty = document.querySelector('.score-input:not(:checked), select.score-input[value=""]');
                 if (firstEmpty) {
-                    firstEmpty.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstEmpty.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center'
+                    });
                     firstEmpty.focus();
                 }
             }
@@ -618,7 +647,7 @@ $isPastDeadline = ($today > $deadline);
     });
 
     // Bersihkan modal saat ditutup
-    document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', function () {
+    document.getElementById('filePreviewModal').addEventListener('hidden.bs.modal', function() {
         document.getElementById('previewImg').src = '';
         document.getElementById('previewPdf').src = '';
     });
