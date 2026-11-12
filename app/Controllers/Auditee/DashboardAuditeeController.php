@@ -26,10 +26,11 @@ class DashboardAuditeeController extends BaseController
         if (!empty($auditIds)) {
             $db->table('temuans')
                 ->whereIn('audit_id', $auditIds)
-                ->where('status_fase', 'revisi_mandiri')
-                ->where('deadline IS NOT NULL')
-                ->where('deadline <', $today)
-                ->update(['status_fase' => 'rtl_approval']);
+                //->where('status_fase', 'revisi_mandiri')
+                //->where('deadline IS NOT NULL')
+                //->where('deadline <', $today)
+                //->update(['status_fase' => 'rtl_approval'])
+                ;
         }
 
         // 1. Tugas aktif (aktif / menunggu_penilaian)
@@ -46,7 +47,7 @@ class DashboardAuditeeController extends BaseController
 
         // 2. Cari semua temuan aktif milik auditee
         $temuanRows = $db->table('temuans')
-            ->select('temuans.audit_id, temuans.status as t_status, temuans.status_fase, temuans.rtl_description, temuans.revisi_sent_at, audits.title')
+            ->select('temuans.audit_id, temuans.status as t_status, temuans.rtl_description, temuans.revisi_sent_at, audits.title')
             ->join('audits', 'audits.id = temuans.audit_id')
             ->where('audits.auditee_id', $userId)
             ->get()->getResult();

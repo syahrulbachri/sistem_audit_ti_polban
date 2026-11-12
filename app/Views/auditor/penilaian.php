@@ -473,7 +473,10 @@ $isPastDeadline = ($today >= $deadline); // Menggunakan >= agar pas di hari H su
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0 bg-dark d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+                <!-- Container untuk Gambar -->
                 <img id="previewImg" src="" class="img-fluid p-3" style="max-height: 80vh; display: none;">
+                
+                <!-- Container untuk PDF (Iframe) - TANPA SANDBOX -->
                 <iframe id="previewPdf" src="" style="width: 100%; height: 80vh; border: none; display: none;"></iframe>
             </div>
             <div class="modal-footer bg-light">
@@ -490,7 +493,7 @@ $isPastDeadline = ($today >= $deadline); // Menggunakan >= agar pas di hari H su
     const framework = '<?= $audit->framework ?>';
     const isPastDeadline = <?= $isPastDeadline ? 'true' : 'false' ?>;
 
-    // Fungsi Preview File
+        // Fungsi Preview File
     function showPreviewModal(url, filename, type) {
         document.getElementById('filePreviewTitle').innerText = filename;
         document.getElementById('downloadFileBtn').href = url;
@@ -499,19 +502,24 @@ $isPastDeadline = ($today >= $deadline); // Menggunakan >= agar pas di hari H su
         const imgEl = document.getElementById('previewImg');
         const pdfEl = document.getElementById('previewPdf');
 
+        // Reset tampilan dulu
         imgEl.style.display = 'none';
         pdfEl.style.display = 'none';
         imgEl.src = '';
         pdfEl.src = '';
 
+        // Cek tipe file, lalu tampilkan yang sesuai
         if (type === 'pdf') {
+            // Untuk PDF, gunakan iframe
             pdfEl.style.display = 'block';
-            pdfEl.src = url;
+            pdfEl.src = url + '?t=' + new Date().getTime(); // Cache buster
         } else {
+            // Untuk gambar, gunakan img tag
             imgEl.style.display = 'block';
-            imgEl.src = url;
+            imgEl.src = url + '?t=' + new Date().getTime(); // Cache buster
         }
 
+        // Tampilkan Modal Bootstrap
         var myModal = new bootstrap.Modal(document.getElementById('filePreviewModal'));
         myModal.show();
     }

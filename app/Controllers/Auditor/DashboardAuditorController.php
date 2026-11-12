@@ -559,41 +559,107 @@ class DashboardAuditorController extends BaseController
         }
 
         $db = \Config\Database::connect();
+        $requestedFile = $this->request->getGet('file');
+
+        if (!$requestedFile) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('Parameter file tidak ada');
+        }
+
+        // Hapus cache buster (?t=...) dari nama file
+        $requestedFile = urldecode($requestedFile);
+        $requestedFile = explode('?', $requestedFile)[0];
+        $requestedFile = trim($requestedFile);
+
+        $fileName = null;
+
+        // STRATEGI 1: Cari di assignment yang diminta
         $assignment = $db->table('audit_question_assignments')
             ->where('id', $assignmentId)
             ->get()->getRow();
 
-        if (!$assignment || empty($assignment->evidence_filename)) {
-            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
-        }
+        if ($assignment && !empty($assignment->evidence_filename)) {
+            $decoded = json_decode($assignment->evidence_filename, true);
 
-        // Cek apakah ada parameter ?file= (untuk multi-file)
-        $requestedFile = $this->request->getGet('file');
-
-        if ($requestedFile) {
-            // Cari file yang diminta di dalam JSON array
-            $files = json_decode($assignment->evidence_filename, true);
-
-            // Jika formatnya array dan file yang diminta ada di dalamnya (Keamanan: mencegah akses file orang lain)
-            if (is_array($files) && in_array($requestedFile, $files)) {
-                $filePath = FCPATH . 'uploads/evidence/' . $requestedFile;
-                if (file_exists($filePath)) {
-                    // true = inline (untuk preview di browser/modal)
-                    return $this->response->download($requestedFile, true)->setFilePath($filePath);
+            if (is_array($decoded)) {
+                foreach ($decoded as $f) {
+                    if (strcasecmp(trim($f), $requestedFile) === 0) {
+                        $fileName = $f;
+                        break;
+                    }
+                }
+            } else {
+                if (strcasecmp(trim($assignment->evidence_filename), $requestedFile) === 0) {
+                    $fileName = $assignment->evidence_filename;
                 }
             }
+        }
+
+        // STRATEGI 2: Cari di SELURUH database
+        if (!$fileName) {
+            $allAssignments = $db->table('audit_question_assignments')
+                ->where('evidence_filename IS NOT NULL')
+                ->where('evidence_filename !=', '')
+                ->get()->getResult();
+
+            foreach ($allAssignments as $asgn) {
+                $decoded = json_decode($asgn->evidence_filename, true);
+                if (is_array($decoded)) {
+                    foreach ($decoded as $f) {
+                        if (strcasecmp(trim($f), $requestedFile) === 0) {
+                            $fileName = $f;
+                            break 2;
+                        }
+                    }
+                } else {
+                    if (strcasecmp(trim($asgn->evidence_filename), $requestedFile) === 0) {
+                        $fileName = $asgn->evidence_filename;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // STRATEGI 3: Langsung dari folder
+        if (!$fileName) {
+            $folderPath = FCPATH . 'uploads/evidence/';
+            if (file_exists($folderPath . $requestedFile)) {
+                $fileName = $requestedFile;
+            }
+        }
+
+        if (!$fileName) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('File tidak ditemukan: ' . $requestedFile);
+        }
+
+        $filePath = FCPATH . 'uploads/evidence/' . $fileName;
+
+        if (!file_exists($filePath)) {
+            throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound('File fisik tidak ada: ' . $fileName);
+        }
+
+        // SERVE FILE DENGAN HEADER YANG TEPAT
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+        // TAMBAHKAN HEADER INI UNTUK MENGIZINKAN IFRAME
+        header('X-Frame-Options: SAMEORIGIN');
+        header('Access-Control-Allow-Origin: *');
+
+        if ($ext === 'pdf') {
+            header('Content-Type: application/pdf');
+            header('Content-Disposition: inline; filename="' . $fileName . '"');
+            header('Content-Length: ' . filesize($filePath));
+            header('Cache-Control: private, max-age=0, must-revalidate');
+            readfile($filePath);
+            exit;
+        } elseif (in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+            $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
+            header('Content-Type: ' . $mime);
+            header('Content-Disposition: inline; filename="' . $fileName . '"');
+            header('Content-Length: ' . filesize($filePath));
+            readfile($filePath);
+            exit;
         } else {
-            // Fallback untuk data lama (jika suatu saat ada yang single file string)
-            $fileName = is_string($assignment->evidence_filename) ? $assignment->evidence_filename : (json_decode($assignment->evidence_filename, true)[0] ?? null);
-
-            if ($fileName) {
-                $filePath = FCPATH . 'uploads/evidence/' . $fileName;
-                if (file_exists($filePath)) {
-                    return $this->response->download($fileName, true)->setFilePath($filePath);
-                }
-            }
+            return $this->response->download($filePath, null);
         }
-
-        throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
     }
 }
