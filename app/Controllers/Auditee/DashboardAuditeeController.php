@@ -15,7 +15,7 @@ class DashboardAuditeeController extends BaseController
         $userId = session()->get('id');
         $today = date('Y-m-d');
 
-        // OTOMATIS CEK & UBAH KE RTL JIKA DEADLINE REVISI LEWAT (Aman)
+        // OTOMATIS CEK & UBAH KE RTL JIKA DEADLINE REVISI LEWAT
         $rawAudits = $db->table('audits')
             ->select('id')
             ->where('auditee_id', $userId)
@@ -26,14 +26,13 @@ class DashboardAuditeeController extends BaseController
         if (!empty($auditIds)) {
             $db->table('temuans')
                 ->whereIn('audit_id', $auditIds)
-                //->where('status_fase', 'revisi_mandiri')
-                //->where('deadline IS NOT NULL')
-                //->where('deadline <', $today)
-                //->update(['status_fase' => 'rtl_approval'])
-                ;
+                ->where('status_fase', 'revisi_mandiri')
+                ->where('deadline IS NOT NULL')
+                ->where('deadline <', $today)
+                ->update(['status_fase' => 'rtl_approval']);
         }
 
-        // 1. Tugas aktif (aktif / menunggu_penilaian)
+        // 1. Tugas aktif
         $audits = $db->table('audits')
             ->select('audits.*, users.fullname as auditor_name, COUNT(aqa.id) as total_questions,
       SUM(CASE WHEN aqa.answer IS NOT NULL AND aqa.answer != "" THEN 1 ELSE 0 END) as answered_count')
@@ -47,7 +46,7 @@ class DashboardAuditeeController extends BaseController
 
         // 2. Cari semua temuan aktif milik auditee
         $temuanRows = $db->table('temuans')
-            ->select('temuans.audit_id, temuans.status as t_status, temuans.rtl_description, temuans.revisi_sent_at, audits.title')
+            ->select('temuans.audit_id, temuans.status as t_status, temuans.status_fase, temuans.rtl_description, temuans.revisi_sent_at, audits.title')
             ->join('audits', 'audits.id = temuans.audit_id')
             ->where('audits.auditee_id', $userId)
             ->get()->getResult();
@@ -59,9 +58,19 @@ class DashboardAuditeeController extends BaseController
         foreach ($temuanRows as $t) {
             if ($t->status_fase === 'rtl_approval' || $t->t_status === 'Open') {
                 if (!isset($rtlMap[$t->audit_id])) {
-                    $rtlMap[$t->audit_id] = (object) ['id' => $t->audit_id, 'title' => $t->title, 'belum_rtl' => 0];
+                    $rtlMap[$t->audit_id] = (object) [
+                        'id' => $t->audit_id,
+                        'title' => $t->title,
+                        'belum_rtl' => 0,
+                        'sudah_dikirim' => !empty($t->rtl_description) // Menandai apakah RTL sudah diisi/dikirim
+                    ];
                 }
-                $rtlMap[$t->audit_id]->belum_rtl++;
+
+                // Jika ada salah satu temuan yang belum diisi RTL, tandai audit ini belum lengkap
+                if (empty($t->rtl_description)) {
+                    $rtlMap[$t->audit_id]->belum_rtl++;
+                    $rtlMap[$t->audit_id]->sudah_dikirim = false;
+                }
             } elseif ($t->status_fase === 'revisi_mandiri' || $t->t_status === 'In_Progress') {
                 if (empty($t->revisi_sent_at)) {
                     if (!isset($revisiMap[$t->audit_id])) {
@@ -200,7 +209,7 @@ class DashboardAuditeeController extends BaseController
         $sampai = $this->request->getGet('sampai');
         $jenis = $this->request->getGet('jenis');
 
-        $totalAktivitas = $db->table('activity_logs')
+        $total_aktivitas = $db->table('activity_logs')
             ->where('user_id', $userId)
             ->where('role', 'auditee')
             ->countAllResults();
@@ -226,7 +235,7 @@ class DashboardAuditeeController extends BaseController
             'title' => 'Riwayat Aktivitas Saya - Sistem Audit IT POLBAN',
             'page_title' => 'Riwayat Aktivitas Saya',
             'logs' => $logs,
-            'totalAktivitas' => $totalAktivitas,
+            'totalAktivitas' => $total_aktivitas,
             'filterDari' => $dari,
             'filterSampai' => $sampai,
             'filterJenis' => $jenis,

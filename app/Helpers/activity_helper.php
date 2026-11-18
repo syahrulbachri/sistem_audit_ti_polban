@@ -6,7 +6,7 @@
 
 if (!function_exists('log_activity')) {
     /**
-     * Mencatat aktivitas user ke tabel activity_logs (fungsi asli dari temanmu)
+     * Mencatat aktivitas user ke tabel activity_logs (fungsi asli)
      * 
      * @param string $action     - LOGIN, LOGOUT, CREATE, UPDATE, DELETE, EXPORT
      * @param string $tableName  - Nama tabel (users, audits, periodes, dll)
@@ -50,17 +50,34 @@ if (!function_exists('log_activity')) {
 
 if (!function_exists('log_aktivitas')) {
     /**
-     * Wrapper/Adapter untuk log_activity() - supaya kode auditee yang sudah pakai log_aktivitas() tetap jalan
+     * Wrapper/Adapter untuk log_activity() - otomatis mendeteksi tipe dari deskripsi
      * 
      * @param string $deskripsi - Deskripsi aktivitas
      * @param string $tipe      - auth|jawaban|rtl|revisi|bukti|info
      */
     function log_aktivitas(string $deskripsi, string $tipe = 'info')
     {
+        $descLower = strtolower($deskripsi);
+
+        // Deteksi otomatis berdasarkan kata kunci di deskripsi jika tipe masih default/info
+        if ($tipe === 'info' || empty($tipe)) {
+            if (strpos($descLower, 'logout') !== false || strpos($descLower, 'login') !== false) {
+                $tipe = 'auth';
+            } elseif (strpos($descLower, 'rtl') !== false) {
+                $tipe = 'rtl';
+            } elseif (strpos($descLower, 'revisi') !== false) {
+                $tipe = 'revisi';
+            } elseif (strpos($descLower, 'bukti') !== false) {
+                $tipe = 'bukti';
+            } elseif (strpos($descLower, 'jawaban') !== false || strpos($descLower, 'audit') !== false) {
+                $tipe = 'jawaban';
+            }
+        }
+
         // Mapping tipe ke action & table_name
         switch ($tipe) {
             case 'auth':
-                $action = (stripos($deskripsi, 'logout') !== false) ? 'LOGOUT' : 'LOGIN';
+                $action = (strpos($descLower, 'logout') !== false) ? 'LOGOUT' : 'LOGIN';
                 $table = 'system';
                 break;
             case 'jawaban':
@@ -74,7 +91,7 @@ if (!function_exists('log_aktivitas')) {
                 $table = 'temuans';
                 break;
             default:
-                $action = 'UPDATE';
+                $action = 'ACTION';
                 $table = 'system';
         }
 

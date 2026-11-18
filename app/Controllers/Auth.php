@@ -39,7 +39,10 @@ class Auth extends Controller
                 'logged_in' => TRUE
             ]);
 
-            // Redirect berdasarkan role (Tanpa log_activity sama sekali)
+            // Mencatat log aktivitas saat berhasil login (seragam dengan format LOGOUT)
+            log_activity('LOGIN', 'system', 'User login: ' . $user->username);
+
+            // Redirect berdasarkan role
             if ($user->role === 'admin')
                 return redirect()->to('/admin/dashboard');
             if ($user->role === 'pimpinan')

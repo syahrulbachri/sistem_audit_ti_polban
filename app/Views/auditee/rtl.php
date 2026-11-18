@@ -22,7 +22,8 @@
 <?php endif; ?>
 
 <!-- Peringatan Upload File (JavaScript) -->
-<div id="uploadWarning" class="alert alert-danger alert-dismissible fade show d-none shadow-sm" role="alert" style="border-left: 5px solid #dc3545;">
+<div id="uploadWarning" class="alert alert-danger alert-dismissible fade show d-none shadow-sm" role="alert"
+    style="border-left: 5px solid #dc3545;">
     <i class="bi bi-exclamation-octagon-fill me-2"></i>
     <strong>Upload dibatalkan!</strong> <span id="uploadWarningText"></span>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -35,7 +36,8 @@
             <?= esc($audit->title) ?>
         </h5>
         <small class="text-muted">
-            Isi Rencana Tindak Lanjut (Rencana, Anggaran, Estimasi Waktu) dan lampirkan bukti awal (jika ada) untuk setiap temuan di bawah ini, lalu kirim ke auditor untuk direview.
+            Isi Rencana Tindak Lanjut (Rencana, Anggaran, Estimasi Waktu) dan lampirkan bukti awal (jika ada) untuk
+            setiap temuan di bawah ini, lalu kirim ke auditor untuk direview.
         </small>
     </div>
 </div>
@@ -101,7 +103,7 @@
                         </div>
                         <?php if (!empty($t->bukti_perbaikan)): ?>
                             <div class="mt-2 small">
-                                <strong>Bukti Terlampir:</strong> 
+                                <strong>Bukti Terlampir:</strong>
                                 <i class="bi bi-paperclip text-primary"></i> <?= esc($t->bukti_perbaikan) ?>
                             </div>
                         <?php endif; ?>
@@ -111,33 +113,39 @@
                     <!-- PERBAIKAN 1: Tambahkan enctype="multipart/form-data" -->
                     <form action="/auditee/rtl/submit/<?= $t->id ?>" method="post" enctype="multipart/form-data" class="rtl-form">
                         <?= csrf_field() ?>
-                        
+
                         <div class="mb-3">
                             <label class="form-label fw-bold">Rencana Perbaikan <span class="text-danger">*</span></label>
-                            <textarea name="rtl_description" class="form-control" rows="3" required placeholder="Jelaskan rencana perbaikan yang akan Anda lakukan..."><?= esc($t->rtl_description ?? '') ?></textarea>
+                            <textarea name="rtl_description" class="form-control" rows="3" required
+                                placeholder="Jelaskan rencana perbaikan yang akan Anda lakukan..."><?= esc($t->rtl_description ?? '') ?></textarea>
                         </div>
-                        
+
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-bold">Anggaran (Rp)</label>
-                                <input type="number" name="rtl_anggaran" class="form-control" min="0" value="<?= esc($t->rtl_anggaran ?? 0) ?>" placeholder="Isi 0 jika tidak perlu anggaran">
+                                <input type="number" name="rtl_anggaran" class="form-control" min="0"
+                                    value="<?= esc($t->rtl_anggaran ?? 0) ?>" placeholder="Isi 0 jika tidak perlu anggaran">
                                 <small class="text-muted">Isi 0 jika perbaikan tidak memerlukan anggaran (misal: buat SOP).</small>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Estimasi Waktu (Target Selesai) <span class="text-danger">*</span></label>
-                                <input type="date" name="rtl_deadline" class="form-control" value="<?= esc($t->rtl_deadline ?? '') ?>" required>
+                                <label class="form-label fw-bold">Estimasi Waktu (Target Selesai) <span
+                                        class="text-danger">*</span></label>
+                                <input type="date" name="rtl_deadline" class="form-control"
+                                    value="<?= esc($t->rtl_deadline ?? '') ?>" required>
                             </div>
                         </div>
 
                         <!-- PERBAIKAN 2: Tambahkan Input File Bukti -->
                         <div class="mb-3 mt-3">
-                            <label class="form-label fw-bold">Upload Bukti Awal / Revisi <span class="text-muted fw-normal">(Opsional)</span></label>
-                            <input type="file" name="bukti" class="form-control file-input" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip">
+                            <label class="form-label fw-bold">Upload Bukti Awal / Revisi <span
+                                    class="text-muted fw-normal">(Opsional)</span></label>
+                            <input type="file" name="bukti" class="form-control file-input"
+                                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip">
                             <small class="text-muted d-block">Format: PDF, JPG, PNG, DOC, XLS, ZIP (Maksimal 5MB)</small>
-                            
+
                             <?php if (!empty($t->bukti_perbaikan)): ?>
                                 <small class="text-primary d-block mt-1">
-                                    <i class="bi bi-paperclip"></i> File saat ini: <?= esc($t->bukti_perbaikan) ?> 
+                                    <i class="bi bi-paperclip"></i> File saat ini: <?= esc($t->bukti_perbaikan) ?>
                                     <span class="text-danger fw-bold">(File baru akan menggantikan file ini)</span>
                                 </small>
                             <?php endif; ?>
@@ -157,7 +165,8 @@
     </div>
 <?php endif; ?>
 
-<a href="/auditee/dashboard" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali ke Dashboard</a>
+<a href="/auditee/dashboard" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Kembali ke
+    Dashboard</a>
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

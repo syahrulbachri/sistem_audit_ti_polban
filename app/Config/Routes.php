@@ -94,13 +94,15 @@ $routes->get('/auditee/fill/(:num)', 'Auditee\FillAuditeeController::fill/$1');
 $routes->post('/auditee/save-answer/(:num)', 'Auditee\FillAuditeeController::saveAnswer/$1');
 $routes->get('/auditee/log-aktivitas', 'Auditee\DashboardAuditeeController::logAktivitas');
 
-$routes->get('/auditee/rtl/(:num)', 'Auditee\TindakLanjutController::rtl/$1');
-$routes->post('/auditee/rtl/save/(:num)', 'Auditee\TindakLanjutController::saveRtl/$1');
-$routes->get('/auditee/bukti/(:num)', 'Auditee\TindakLanjutController::bukti/$1');
-$routes->post('/auditee/bukti/save/(:num)', 'Auditee\TindakLanjutController::saveBukti/$1');
+// Rute untuk menampilkan halaman RTL
+$routes->get('/auditee/rtl/(:num)', 'Auditee\RtlAuditeeController::index/$1');
+
+// Rute POST untuk submit/simpan RTL (kita daftarkan kedua versi URL-nya agar aman dari cache browser)
+$routes->post('/auditee/rtl/save/(:num)', 'Auditee\RtlAuditeeController::submit/$1');
+$routes->post('/auditee/rtl/submit/(:num)', 'Auditee\RtlAuditeeController::submit/$1');
+
 // Rute untuk menampilkan halaman revisi (menggunakan parameter ID audit)
 $routes->get('auditee/revisi/(:num)', 'Auditee\FillAuditeeController::revisi/$1');
-
 // Rute untuk menyimpan revisi (POST form)
 $routes->post('auditee/revisi/save/(:num)', 'Auditee\FillAuditeeController::saveRevisi/$1');
 

@@ -75,16 +75,22 @@ $avgProgress = $totalQ > 0 ? round(($answeredQ / $totalQ) * 100) : 0;
 </div>
 
 <!-- ============ CARD RTL (TAMPIL DULU) ============ -->
+<!-- ============ CARD RTL (TAMPIL DULU) ============ -->
 <?php if (!empty($rtlAudits)): ?>
     <h5 class="fw-bold mb-3" style="color: var(--primary-navy);">
         <i class="bi bi-clipboard-exclamation me-2"></i>Rencana Tindak Lanjut (RTL)
     </h5>
     <div class="row g-4 mb-4">
         <?php foreach ($rtlAudits as $a): ?>
+            <?php
+            // Tentukan status berdasarkan properti dari controller
+            $sudahDikirim = isset($a->sudah_dikirim) && $a->sudah_dikirim;
+            ?>
             <div class="col-md-6 col-lg-4">
-                <div class="card h-100 border-0 shadow-sm" style="border-radius: 12px; border-left: 5px solid #dc3545;">
+                <div class="card h-100 border-0 shadow-sm audit-card"
+                    style="border-radius: 12px; border-left: 5px solid <?= $sudahDikirim ? '#ffc107' : '#dc3545' ?>;">
                     <div class="card-body p-4">
-                        <?php if ($a->belum_rtl > 0): ?>
+                        <?php if (!$sudahDikirim): ?>
                             <span class="badge bg-danger rounded-pill mb-2">Perlu RTL</span>
                             <h6 class="fw-bold"><?= esc($a->title) ?></h6>
                             <p class="small text-muted mb-3">
@@ -98,10 +104,10 @@ $avgProgress = $totalQ > 0 ? round(($answeredQ / $totalQ) * 100) : 0;
                             <span class="badge bg-warning text-dark rounded-pill mb-2">Menunggu Review RTL</span>
                             <h6 class="fw-bold"><?= esc($a->title) ?></h6>
                             <p class="small text-muted mb-3">
-                                <i class="bi bi-hourglass-split me-1"></i>RTL Anda sedang direview oleh auditor.
+                                <i class="bi bi-hourglass-split me-1"></i>RTL Anda sudah dikirim dan sedang direview oleh auditor.
                             </p>
                             <a href="/auditee/rtl/<?= $a->id ?>" class="btn btn-outline-secondary w-100">
-                                <i class="bi bi-eye me-1"></i>Lihat RTL
+                                <i class="bi bi-eye me-1"></i>Lihat / Ubah RTL
                             </a>
                         <?php endif; ?>
                     </div>
