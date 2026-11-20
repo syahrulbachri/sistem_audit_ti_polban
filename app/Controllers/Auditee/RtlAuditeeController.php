@@ -19,8 +19,9 @@ class RtlAuditeeController extends BaseController
             ->where('id', $auditId)
             ->where('auditee_id', $userId)
             ->get()->getRow();
-        if (!$audit)
+        if (!$audit) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
+        }
 
         // Ambil semua temuan berstatus Open (yang butuh RTL / menunggu review / ditolak)
         $temuans = $db->table('temuans')
@@ -39,13 +40,13 @@ class RtlAuditeeController extends BaseController
         ]);
     }
 
-       // Auditee mengirim/merevisi RTL ke auditor
+    // Auditee mengirim/merevisi RTL ke auditor
     public function submit(int $temuanId)
     {
         if (!session()->get('logged_in') || session()->get('role') !== 'auditee') {
             return redirect()->to('/')->with('error', 'Akses ditolak.');
         }
-        
+
         $db = \Config\Database::connect();
         $userId = session()->get('id');
 
@@ -59,7 +60,7 @@ class RtlAuditeeController extends BaseController
             ->where('id', $temuan->audit_id)
             ->where('auditee_id', $userId)
             ->get()->getRow();
-            
+
         if (!$audit || !in_array($temuan->status, ['Open', 'In_Progress'])) {
             return redirect()->to('/auditee/dashboard')->with('error', 'Temuan tidak valid untuk diisi/direvisi.');
         }
@@ -81,33 +82,44 @@ class RtlAuditeeController extends BaseController
             'updated_at' => date('Y-m-d H:i:s')
         ];
 
-        // ✅ PERBAIKAN UTAMA: Tambahkan logika upload file jika ada
-        $file = $this->request->getFile('bukti');
-        if ($file && $file->isValid() && !$file->hasMoved()) {
-            // Validasi ukuran (Maksimal 5MB)
-            if ($file->getSize() > 5 * 1024 * 1024) {
-                return redirect()->back()->withInput()->with('error', 'Ukuran file bukti maksimal 5MB.');
-            }
-            
-            // Validasi ekstensi
-            $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
-            if (!in_array(strtolower($file->getClientExtension()), $allowed)) {
-                return redirect()->back()->withInput()->with('error', 'Format file tidak diizinkan (Gunakan: pdf, jpg, png, doc, docx, xls, xlsx, zip).');
+        // ✅ PERBAIKAN MULTI-FILE: Ambil semua file dari input name="bukti[]"
+        $files = $this->request->getFileMultiple('bukti');
+        $uploadedFiles = [];
+        $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'zip'];
+        $maxSize = 5 * 1024 * 1024; // 5MB per file
+
+        if (!empty($files) && is_array($files)) {
+            // Validasi seluruh file terpilih terlebih dahulu sebelum memindahkan file
+            foreach ($files as $file) {
+                if ($file && $file->isValid() && !$file->hasMoved()) {
+                    if ($file->getSize() > $maxSize) {
+                        return redirect()->back()->withInput()->with('error', 'Ukuran tiap file bukti maksimal 5MB.');
+                    }
+
+                    $ext = strtolower($file->getClientExtension());
+                    if (!in_array($ext, $allowed)) {
+                        return redirect()->back()->withInput()->with('error', 'Format file tidak diizinkan (Gunakan: pdf, jpg, png, doc, docx, xls, xlsx, zip).');
+                    }
+                }
             }
 
-            // Simpan file
             $folder = FCPATH . 'uploads/bukti_perbaikan';
             if (!is_dir($folder)) {
                 mkdir($folder, 0777, true);
             }
-            
-            // PERBAIKAN BEST PRACTICE: Gunakan getRandomName() agar nama file unik 
-            // dan tidak tertimpa/eror karena spasi atau karakter khusus di nama file asli.
-            $newFileName = $file->getRandomName();
-            $file->move($folder, $newFileName);
 
-            // Masukkan nama file baru ke data yang akan diupdate
-            $updateData['bukti_perbaikan'] = $newFileName;
+            foreach ($files as $file) {
+                if ($file && $file->isValid() && !$file->hasMoved()) {
+                    $newFileName = $file->getRandomName();
+                    $file->move($folder, $newFileName);
+                    $uploadedFiles[] = $newFileName;
+                }
+            }
+        }
+
+        // Simpan daftar nama file dalam format JSON jika ada file baru yang diupload
+        if (!empty($uploadedFiles)) {
+            $updateData['bukti_perbaikan'] = json_encode($uploadedFiles);
         }
 
         // Eksekusi update ke database

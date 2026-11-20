@@ -1,6 +1,23 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 
+<?php
+// Helper lokal untuk mengubah bukti_perbaikan (JSON array atau string lama) menjadi list nama file
+$parseBuktiFiles = function ($raw) {
+    if (empty($raw)) {
+        return [];
+    }
+    if (is_array($raw)) {
+        return array_values(array_filter($raw));
+    }
+    $decoded = json_decode($raw, true);
+    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+        return array_values(array_filter($decoded));
+    }
+    return [trim((string) $raw)];
+};
+?>
+
 <h4 class="fw-bold mb-4" style="color: var(--primary-navy);">
     <?= $page_title ?>
 </h4>
@@ -45,12 +62,16 @@
 <?php if (!empty($temuans)): ?>
     <?php foreach ($temuans as $t):
         $riskBadge = match ($t->tingkat_risiko) {
-            'Rendah' => 'bg-success', 'Sedang' => 'bg-warning text-dark',
-            'Tinggi' => 'bg-danger', 'Kritis' => 'bg-dark', default => 'bg-secondary'
+            'Rendah' => 'bg-success',
+            'Sedang' => 'bg-warning text-dark',
+            'Tinggi' => 'bg-danger',
+            'Kritis' => 'bg-dark',
+            default => 'bg-secondary'
         };
         $rtlFilled = !empty($t->rtl_description);
         $rejected = !empty($t->auditor_note);      // Ada catatan auditor = RTL ditolak
         $waiting = $rtlFilled && !$rejected;      // RTL sudah dikirim, menunggu review
+        $buktiList = $parseBuktiFiles($t->bukti_perbaikan ?? null);
         ?>
         <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px; border-left: 5px solid #dc3545;">
             <div class="card-body p-4">
@@ -101,16 +122,25 @@
                                 <?= date('d M Y', strtotime($t->rtl_deadline)) ?>
                             </div>
                         </div>
-                        <?php if (!empty($t->bukti_perbaikan)): ?>
+                        <?php if (!empty($buktiList)): ?>
                             <div class="mt-2 small">
-                                <strong>Bukti Terlampir:</strong>
-                                <i class="bi bi-paperclip text-primary"></i> <?= esc($t->bukti_perbaikan) ?>
+                                <strong>Bukti Terlampir (<?= count($buktiList) ?> file):</strong>
+                                <ul class="list-unstyled mb-0 mt-1">
+                                    <?php foreach ($buktiList as $namaFile): ?>
+                                        <li>
+                                            <i class="bi bi-paperclip text-primary"></i>
+                                            <a href="<?= base_url('uploads/bukti_perbaikan/' . rawurlencode($namaFile)) ?>" target="_blank"
+                                                class="text-decoration-none">
+                                                <?= esc($namaFile) ?>
+                                            </a>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
                             </div>
                         <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <!-- Form RTL (baru / setelah ditolak) -->
-                    <!-- PERBAIKAN 1: Tambahkan enctype="multipart/form-data" -->
                     <form action="/auditee/rtl/submit/<?= $t->id ?>" method="post" enctype="multipart/form-data" class="rtl-form">
                         <?= csrf_field() ?>
 
@@ -135,18 +165,19 @@
                             </div>
                         </div>
 
-                        <!-- PERBAIKAN 2: Tambahkan Input File Bukti -->
+                        <!-- Input Multi-File Bukti -->
                         <div class="mb-3 mt-3">
                             <label class="form-label fw-bold">Upload Bukti Awal / Revisi <span
-                                    class="text-muted fw-normal">(Opsional)</span></label>
-                            <input type="file" name="bukti" class="form-control file-input"
+                                    class="text-muted fw-normal">(Opsional, bisa pilih lebih dari 1 file)</span></label>
+                            <input type="file" name="bukti[]" class="form-control file-input" multiple
                                 accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip">
-                            <small class="text-muted d-block">Format: PDF, JPG, PNG, DOC, XLS, ZIP (Maksimal 5MB)</small>
+                            <small class="text-muted d-block">Format: PDF, JPG, PNG, DOC, XLS, ZIP (Maksimal 5MB per file)</small>
 
-                            <?php if (!empty($t->bukti_perbaikan)): ?>
+                            <?php if (!empty($buktiList)): ?>
                                 <small class="text-primary d-block mt-1">
-                                    <i class="bi bi-paperclip"></i> File saat ini: <?= esc($t->bukti_perbaikan) ?>
-                                    <span class="text-danger fw-bold">(File baru akan menggantikan file ini)</span>
+                                    <i class="bi bi-paperclip"></i> File saat ini (<?= count($buktiList) ?> file):
+                                    <?= esc(implode(', ', $buktiList)) ?>
+                                    <span class="text-danger fw-bold">(Upload file baru akan menggantikan daftar file ini)</span>
                                 </small>
                             <?php endif; ?>
                         </div>
@@ -170,7 +201,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        var MAX = 5 * 1024 * 1024; // 5 MB
+        var MAX = 5 * 1024 * 1024; // 5 MB per file
         var box = document.getElementById('uploadWarning');
         var txt = document.getElementById('uploadWarningText');
         if (!box || !txt) return;
@@ -183,16 +214,27 @@
             box._timer = setTimeout(function () { box.classList.add('d-none'); }, 10000);
         }
 
-        // 1) Cek begitu user memilih file
+        function findOversizedFiles(fileList) {
+            var bad = [];
+            if (!fileList) return bad;
+            for (var i = 0; i < fileList.length; i++) {
+                var f = fileList[i];
+                if (f && f.size > MAX) {
+                    bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                }
+            }
+            return bad;
+        }
+
+        // 1) Cek begitu user memilih file (mendukung multiple files)
         document.querySelectorAll('.file-input').forEach(function (inp) {
             inp.addEventListener('change', function () {
-                var f = inp.files[0];
-                if (f && f.size > MAX) {
-                    var mb = (f.size / 1024 / 1024).toFixed(1);
-                    inp.value = ''; // file langsung dibuang dari pilihan
+                var bad = findOversizedFiles(inp.files);
+                if (bad.length) {
+                    inp.value = ''; // kosongkan pilihan agar tidak terkirim file yang melebihi batas
                     inp.classList.add('is-invalid');
                     setTimeout(function () { inp.classList.remove('is-invalid'); }, 5000);
-                    showWarning('File "' + f.name + '" berukuran ' + mb + ' MB — melebihi batas maksimal 5 MB. Silakan kompres file atau bungkus menjadi ZIP terlebih dahulu.');
+                    showWarning('File berikut melebihi batas maksimal 5 MB: ' + bad.join(', ') + '. Silakan kompres atau bungkus menjadi ZIP terlebih dahulu.');
                 }
             });
         });
@@ -202,8 +244,7 @@
             form.addEventListener('submit', function (e) {
                 var bad = [];
                 form.querySelectorAll('.file-input').forEach(function (inp) {
-                    var f = inp.files[0];
-                    if (f && f.size > MAX) bad.push(f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)');
+                    bad = bad.concat(findOversizedFiles(inp.files));
                 });
                 if (bad.length) {
                     e.preventDefault(); // batalkan pengiriman
